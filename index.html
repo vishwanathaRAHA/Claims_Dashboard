@@ -1,0 +1,2541 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Claims Analytics Dashboard | Power BI Style</title>
+    <script src="https://cdn.jsdelivr.net/npm/@tailwindcss/browser@4"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        // Immediately check for view-only mode and set a flag BEFORE page renders
+        (function() {
+            var params = new URLSearchParams(window.location.search);
+            window.isViewOnlyFromURL = false;
+            window.sharedDataId = null;
+            
+            // Check for JSONBin ID (new format) or localStorage ID (old format)
+            if (params.get('mode') === 'view' && params.get('id')) {
+                window.isViewOnlyFromURL = true;
+                window.sharedDataId = params.get('id');
+                window.isJSONBinShare = true;
+                document.documentElement.classList.add('view-only-mode');
+            } else if (params.get('mode') === 'view' && params.get('data')) {
+                window.isViewOnlyFromURL = true;
+                window.sharedDataId = params.get('data');
+                window.isJSONBinShare = false;
+                document.documentElement.classList.add('view-only-mode');
+            }
+        })();
+    </script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+        
+        /* View-only mode: hide upload section immediately */
+        .view-only-mode #uploadSection {
+            display: none !important;
+        }
+        
+        * {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+        }
+        
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: linear-gradient(135deg, #0f172a 0%, #1e293b 100%);
+            font-size: 13px;
+        }
+        
+        .kpi-card {
+            background: linear-gradient(145deg, #ffffff 0%, #f8fafc 100%);
+            border-left: 3px solid;
+            transition: all 0.3s ease;
+            cursor: pointer;
+        }
+        
+        .kpi-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+        }
+        
+        .kpi-card.active {
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.5);
+            transform: translateY(-2px);
+        }
+        
+        .kpi-title {
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.5px;
+            color: #64748b;
+            white-space: nowrap;
+        }
+        
+        .kpi-value {
+            font-size: 22px;
+            font-weight: 700;
+            color: #1e293b;
+            line-height: 1.2;
+        }
+        
+        .kpi-subtitle {
+            font-size: 10px;
+            color: #94a3b8;
+            white-space: nowrap;
+        }
+        
+        .chart-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.08);
+            transition: all 0.3s ease;
+            overflow: hidden;
+        }
+        
+        .chart-container:hover {
+            box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+        }
+        
+        .chart-container.chart-filtered {
+            opacity: 0.6;
+        }
+        
+        .chart-container.chart-active {
+            box-shadow: 0 0 0 2px rgba(99, 102, 241, 0.4), 0 6px 24px rgba(0,0,0,0.12);
+        }
+        
+        .chart-title {
+            font-size: 12px;
+            font-weight: 600;
+            color: #374151;
+        }
+        
+        .chart-wrapper {
+            position: relative;
+            width: 100%;
+        }
+        
+        .chart-wrapper-sm {
+            height: 180px;
+        }
+        
+        .chart-wrapper-md {
+            height: 220px;
+        }
+        
+        .chart-wrapper-lg {
+            height: 250px;
+        }
+        
+        .chart-wrapper-gauge {
+            height: 140px;
+        }
+        
+        .slicer-container {
+            background: rgba(255,255,255,0.98);
+            backdrop-filter: blur(10px);
+        }
+        
+        .slicer-select {
+            font-size: 12px;
+            padding: 6px 28px 6px 10px;
+            border-radius: 6px;
+            border: 1px solid #e2e8f0;
+        }
+        
+        .slicer-btn {
+            transition: all 0.2s ease;
+        }
+        
+        .slicer-btn:hover {
+            background: #e0e7ff;
+        }
+        
+        .slicer-btn.active {
+            background: #4f46e5;
+            color: white;
+        }
+        
+        .upload-zone {
+            border: 2px dashed #6366f1;
+            background: linear-gradient(145deg, #eef2ff 0%, #e0e7ff 100%);
+            transition: all 0.3s ease;
+        }
+        
+        .upload-zone:hover {
+            border-color: #4f46e5;
+            background: linear-gradient(145deg, #e0e7ff 0%, #c7d2fe 100%);
+            transform: scale(1.01);
+        }
+        
+        .upload-zone.dragover {
+            border-color: #4338ca;
+            background: #c7d2fe;
+            transform: scale(1.02);
+        }
+        
+        .cross-filter-indicator {
+            position: absolute;
+            top: 8px;
+            right: 8px;
+            background: #4f46e5;
+            color: white;
+            padding: 3px 8px;
+            border-radius: 12px;
+            font-size: 10px;
+            display: none;
+            z-index: 10;
+        }
+        
+        .cross-filter-indicator.show {
+            display: flex;
+            align-items: center;
+            gap: 4px;
+        }
+        
+        .filter-tag {
+            background: #e0e7ff;
+            color: #4338ca;
+            padding: 3px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            margin: 2px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+        
+        .filter-tag:hover {
+            background: #c7d2fe;
+        }
+        
+        .filter-tag .remove {
+            width: 14px;
+            height: 14px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 50%;
+            background: rgba(0,0,0,0.1);
+            font-size: 10px;
+        }
+        
+        .filter-tag .remove:hover {
+            background: #ef4444;
+            color: white;
+        }
+        
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: #f1f5f9;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: #cbd5e1;
+            border-radius: 3px;
+        }
+        
+        .tooltip-powerbi {
+            position: fixed;
+            background: #1e293b;
+            color: white;
+            padding: 10px 14px;
+            border-radius: 6px;
+            font-size: 11px;
+            z-index: 9999;
+            pointer-events: none;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.25);
+            max-width: 240px;
+            opacity: 0;
+            transition: opacity 0.15s ease;
+        }
+        
+        .tooltip-powerbi.show {
+            opacity: 1;
+        }
+        
+        .tooltip-powerbi::before {
+            content: '';
+            position: absolute;
+            bottom: -5px;
+            left: 50%;
+            transform: translateX(-50%);
+            border-left: 5px solid transparent;
+            border-right: 5px solid transparent;
+            border-top: 5px solid #1e293b;
+        }
+        
+        .drill-modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.6);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            backdrop-filter: blur(3px);
+        }
+        
+        .drill-modal.show {
+            display: flex;
+        }
+        
+        .drill-content {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            max-width: 800px;
+            width: 90%;
+            max-height: 80vh;
+            overflow-y: auto;
+            animation: slideUp 0.25s ease;
+        }
+        
+        @keyframes slideUp {
+            from { transform: translateY(15px); opacity: 0; }
+            to { transform: translateY(0); opacity: 1; }
+        }
+        
+        .visual-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+        
+        .visual-actions {
+            display: flex;
+            gap: 6px;
+        }
+        
+        .visual-action-btn {
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #f1f5f9;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            font-size: 10px;
+        }
+        
+        .visual-action-btn:hover {
+            background: #e0e7ff;
+            color: #4f46e5;
+        }
+        
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 12px;
+            font-size: 11px;
+            color: #64748b;
+        }
+        
+        .breadcrumb span {
+            cursor: pointer;
+        }
+        
+        .breadcrumb span:hover {
+            color: #4f46e5;
+        }
+        
+        .breadcrumb .active {
+            color: #1e293b;
+            font-weight: 600;
+        }
+
+        .loading-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(255,255,255,0.9);
+            z-index: 9999;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+            gap: 12px;
+        }
+        
+        .loading-overlay.show {
+            display: flex;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 3px solid #e0e7ff;
+            border-top-color: #4f46e5;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+        
+        .insight-card {
+            font-size: 12px;
+        }
+        
+        .insight-card h4 {
+            font-size: 12px;
+            font-weight: 600;
+        }
+        
+        .insight-card p {
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .matrix-table {
+            font-size: 11px;
+        }
+        
+        .matrix-table th, .matrix-table td {
+            padding: 6px 10px;
+        }
+    </style>
+</head>
+<body class="min-h-screen">
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay">
+        <div class="spinner"></div>
+        <p class="text-gray-600 font-medium">Processing your data...</p>
+    </div>
+
+    <!-- Power BI Tooltip -->
+    <div id="powerbiTooltip" class="tooltip-powerbi"></div>
+
+    <!-- Share Modal -->
+    <div id="shareModal" class="drill-modal" onclick="closeShareModal(event)">
+        <div class="drill-content" onclick="event.stopPropagation()" style="max-width: 500px;">
+            <div class="flex justify-between items-center mb-4">
+                <h3 class="text-xl font-bold text-gray-800"><i class="fas fa-share-alt text-green-600 mr-2"></i>Share Dashboard</h3>
+                <button onclick="closeShareModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <p class="text-gray-600 mb-4">Generate a view-only link to share this dashboard. Recipients can use all filters, slicers, and enter premium values, but cannot upload new data.</p>
+            
+            <div class="bg-gray-50 rounded-lg p-4 mb-4">
+                <label class="block text-sm font-medium text-gray-700 mb-2">Shareable Link</label>
+                <div class="flex gap-2">
+                    <input type="text" id="shareLink" readonly class="flex-1 border border-gray-300 rounded-lg px-3 py-2 bg-white text-sm">
+                    <button onclick="copyShareLink()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-copy"></i> Copy
+                    </button>
+                </div>
+                <p id="copyStatus" class="text-sm text-green-600 mt-2 hidden"><i class="fas fa-check"></i> Link copied to clipboard!</p>
+            </div>
+            
+            <div class="bg-green-50 border border-green-200 rounded-lg p-4 mb-4">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-cloud text-green-600 mt-1"></i>
+                    <div>
+                        <p class="text-sm text-green-800 font-medium">☁️ Cloud Sharing (Works Everywhere!)</p>
+                        <p class="text-sm text-green-700 mt-1">Your data is securely stored online using JSONBlob. Share with anyone - they can open the link in any browser, any device! No signup required.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="bg-amber-50 border border-amber-200 rounded-lg p-4">
+                <div class="flex items-start gap-3">
+                    <i class="fas fa-info-circle text-amber-600 mt-1"></i>
+                    <div>
+                        <p class="text-sm text-amber-800 font-medium">View-Only Mode Features:</p>
+                        <ul class="text-sm text-amber-700 mt-2 space-y-1">
+                            <li>✓ All filters and slicers work</li>
+                            <li>✓ Premium input is functional</li>
+                            <li>✓ Cross-filtering between charts</li>
+                            <li>✓ Drill-through on KPIs</li>
+                            <li>✓ Export reports</li>
+                            <li>✗ Cannot upload new data</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="mt-4 flex gap-3">
+                <button onclick="generateShareLink()" class="flex-1 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition flex items-center justify-center gap-2">
+                    <i class="fas fa-link"></i> Generate Link
+                </button>
+                <button onclick="closeShareModal()" class="px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Drill-through Modal -->
+    <div id="drillModal" class="drill-modal" onclick="closeDrillModal(event)">
+        <div class="drill-content" onclick="event.stopPropagation()">
+            <div class="flex justify-between items-center mb-4">
+                <h3 id="drillTitle" class="text-xl font-bold text-gray-800"></h3>
+                <button onclick="closeDrillModal()" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div id="drillBreadcrumb" class="breadcrumb"></div>
+            <div id="drillBody"></div>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 text-white py-4 px-6 shadow-xl">
+        <div class="max-w-7xl mx-auto flex justify-between items-center">
+            <div class="flex items-center gap-4">
+                <i class="fas fa-chart-line text-3xl text-yellow-400"></i>
+                <div>
+                    <h1 class="text-2xl font-bold">Claims Analytics Dashboard</h1>
+                    <p class="text-indigo-200 text-sm">Premium vs Claims Performance Tracker</p>
+                </div>
+            </div>
+            <div class="flex items-center gap-4">
+                <span id="lastUpdated" class="text-sm text-indigo-200"></span>
+                <span id="viewOnlyBadge" class="hidden bg-amber-500 text-white px-3 py-1 rounded-full text-sm font-medium">
+                    <i class="fas fa-eye mr-1"></i> View Only
+                </span>
+                <button id="shareBtn" onclick="openShareModal()" class="hidden bg-green-600 hover:bg-green-700 px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                    <i class="fas fa-share-alt"></i> Share
+                </button>
+                <button onclick="exportReport()" class="bg-indigo-600 hover:bg-indigo-700 px-4 py-2 rounded-lg flex items-center gap-2 transition">
+                    <i class="fas fa-download"></i> Export
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="max-w-7xl mx-auto p-6">
+        <!-- Upload Section -->
+        <div id="uploadSection" class="mb-8">
+            <div id="uploadZone" class="upload-zone rounded-xl p-12 text-center cursor-pointer" ondragover="event.preventDefault(); this.classList.add('dragover')" ondragleave="this.classList.remove('dragover')" ondrop="event.preventDefault(); this.classList.remove('dragover'); if(event.dataTransfer.files[0]) processFile(event.dataTransfer.files[0])">
+                <i class="fas fa-cloud-upload-alt text-6xl text-indigo-500 mb-4"></i>
+                <h3 class="text-xl font-semibold text-gray-700 mb-2">Upload Your Claims Data</h3>
+                <p class="text-gray-500 mb-4">Drag & drop your Excel file here, or click to browse</p>
+                <p class="text-sm text-gray-400">Supported: .xlsx, .xls, .csv</p>
+                <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden">
+            </div>
+            
+            <div class="text-center mt-4">
+                <button onclick="loadSampleData()" class="text-indigo-400 hover:text-indigo-300 underline">
+                    Or load sample data to explore the dashboard
+                </button>
+            </div>
+        </div>
+
+        <!-- Dashboard Content -->
+        <div id="dashboardContent" class="hidden">
+            <!-- Active Filters Display -->
+            <div id="activeFiltersBar" class="hidden bg-white rounded-xl p-3 mb-4 shadow-lg">
+                <div class="flex items-center gap-3 flex-wrap">
+                    <span class="text-sm font-medium text-gray-600"><i class="fas fa-filter mr-2"></i>Active Filters:</span>
+                    <div id="activeFilterTags" class="flex flex-wrap gap-2"></div>
+                    <button onclick="resetFilters()" class="ml-auto text-sm text-indigo-600 hover:text-indigo-800 font-medium">
+                        Clear All
+                    </button>
+                </div>
+            </div>
+
+            <!-- Slicers Row -->
+            <div class="slicer-container rounded-xl p-4 mb-6 shadow-lg">
+                <div class="flex flex-wrap gap-4 items-center">
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-sliders-h text-indigo-600"></i>
+                        <span class="font-semibold text-gray-700">Slicers:</span>
+                    </div>
+                    
+                    <div class="relative">
+                        <select id="diseaseFilter" class="border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white cursor-pointer">
+                            <option value="all">All Disease Types</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                    </div>
+                    
+                    <div class="relative">
+                        <select id="cityFilter" class="border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white cursor-pointer">
+                            <option value="all">All Cities</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                    </div>
+                    
+                    <div class="relative">
+                        <select id="claimTypeFilter" class="border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white cursor-pointer">
+                            <option value="all">All Claims (Cashless/Reimb)</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                    </div>
+                    
+                    <div class="relative">
+                        <select id="hospitalFilter" class="border border-gray-300 rounded-lg px-4 py-2 pr-8 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 appearance-none bg-white cursor-pointer">
+                            <option value="all">All Hospitals</option>
+                        </select>
+                        <i class="fas fa-chevron-down absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                    </div>
+                    
+                    <div class="relative">
+                        <i class="fas fa-search absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm"></i>
+                        <input type="text" id="searchEmployee" placeholder="Search Employee..." class="border border-gray-300 rounded-lg pl-9 pr-4 py-2 focus:ring-2 focus:ring-indigo-500 w-48">
+                    </div>
+                    
+                    <button onclick="resetFilters()" class="bg-gray-200 hover:bg-gray-300 px-4 py-2 rounded-lg transition flex items-center gap-2">
+                        <i class="fas fa-undo text-sm"></i> Reset
+                    </button>
+                    
+                    <div class="flex items-center gap-2 ml-4 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 rounded-lg border border-green-200">
+                        <i class="fas fa-rupee-sign text-green-600"></i>
+                        <label class="text-sm font-medium text-green-700">Premium:</label>
+                        <input type="number" id="premiumInput" placeholder="Enter Premium" 
+                               class="border border-green-300 rounded-lg px-3 py-1 w-36 focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
+                               onchange="updatePremiumRatio()" onkeyup="updatePremiumRatio()">
+                    </div>
+                    
+                    <button onclick="showUpload()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition ml-auto flex items-center gap-2">
+                        <i class="fas fa-upload"></i> New Data
+                    </button>
+                </div>
+            </div>
+
+            <!-- KPI Cards Row - 7 KPIs -->
+            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-5">
+                <!-- KPI 1: Payout Ratio (Paid/Claimed) -->
+                <div class="kpi-card rounded-lg p-3 border-l-indigo-600" onclick="drillKPI('payoutRatio')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">PAYOUT RATIO</p>
+                            <p id="kpiPayoutRatio" class="kpi-value mt-1">--%</p>
+                            <p id="kpiPayoutTrend" class="kpi-subtitle mt-1"></p>
+                        </div>
+                        <div class="bg-indigo-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-percentage text-indigo-600 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 bg-gray-200 rounded-full h-1.5">
+                        <div id="payoutRatioBar" class="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                </div>
+
+                <!-- KPI 2: Premium Payout Ratio -->
+                <div class="kpi-card rounded-lg p-3 border-l-green-600" id="premiumKpiCard">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">PREMIUM RATIO</p>
+                            <p id="kpiPremiumRatio" class="kpi-value mt-1">--%</p>
+                            <p id="kpiPremiumTrend" class="kpi-subtitle mt-1"><span class="text-gray-400">Enter premium</span></p>
+                        </div>
+                        <div class="bg-green-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-rupee-sign text-green-600 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 bg-gray-200 rounded-full h-1.5">
+                        <div id="premiumRatioBar" class="bg-green-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="kpiPremiumAmount" class="kpi-subtitle mt-1 truncate">Premium: Not set</p>
+                </div>
+
+                <!-- KPI 3: Total Claims -->
+                <div class="kpi-card rounded-lg p-3 border-l-cyan-600" onclick="drillKPI('totalClaims')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">TOTAL CLAIMS PAID</p>
+                            <p id="kpiTotalClaims" class="kpi-value mt-1">₹0</p>
+                            <p id="kpiClaimsCount" class="kpi-subtitle mt-1">0 claims</p>
+                        </div>
+                        <div class="bg-cyan-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-money-bill-wave text-cyan-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 4: Outstanding Amount -->
+                <div class="kpi-card rounded-lg p-3 border-l-orange-500" onclick="drillKPI('outstanding')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">OUTSTANDING</p>
+                            <p id="kpiOutstanding" class="kpi-value mt-1">₹0</p>
+                            <p id="kpiOutstandingCount" class="kpi-subtitle mt-1">Pending</p>
+                        </div>
+                        <div class="bg-orange-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-clock text-orange-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 5: Average Claim Value -->
+                <div class="kpi-card rounded-lg p-3 border-l-amber-600" onclick="drillKPI('avgClaim')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">AVG CLAIM</p>
+                            <p id="kpiAvgClaim" class="kpi-value mt-1">₹0</p>
+                            <p id="kpiMedianClaim" class="kpi-subtitle mt-1">Median: ₹0</p>
+                        </div>
+                        <div class="bg-amber-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-calculator text-amber-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 6: Sum Insured Utilization -->
+                <div class="kpi-card rounded-lg p-3 border-l-rose-600" onclick="drillKPI('siUtilization')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">SI UTILIZED</p>
+                            <p id="kpiSumInsured" class="kpi-value mt-1">₹0</p>
+                            <p id="kpiUtilization" class="kpi-subtitle mt-1"></p>
+                        </div>
+                        <div class="bg-rose-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-shield-alt text-rose-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- KPI 7: High Value Claims -->
+                <div class="kpi-card rounded-lg p-3 border-l-purple-600" onclick="drillKPI('highValue')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">HIGH VALUE</p>
+                            <p id="kpiHighValue" class="kpi-value mt-1">0</p>
+                            <p id="kpiHighValuePct" class="kpi-subtitle mt-1">0% of total</p>
+                        </div>
+                        <div class="bg-purple-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-exclamation-triangle text-purple-600 text-xs"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 1 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+                <!-- Disease Chart (Large) -->
+                <div class="chart-container p-4 lg:col-span-2 relative" id="diseaseChartContainer">
+                    <span class="cross-filter-indicator" id="diseaseFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('disease')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-disease text-rose-500 mr-2"></i>Claims by Disease (ICD)</h3>
+                        <div class="visual-actions">
+                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('disease')"><i class="fas fa-expand"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-lg">
+                        <canvas id="diseaseChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Payout Ratio Gauge -->
+                <div class="chart-container p-4 relative" id="gaugeChartContainer">
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Payout Ratio</h3>
+                    </div>
+                    <div class="gauge-container flex flex-col items-center">
+                        <canvas id="gaugeChart" height="160"></canvas>
+                        <div class="mt-3 grid grid-cols-3 gap-2 text-center w-full">
+                            <div class="bg-green-50 rounded p-1.5">
+                                <p class="text-[10px] text-gray-500">Target</p>
+                                <p class="font-semibold text-green-600 text-xs">≤70%</p>
+                            </div>
+                            <div class="bg-amber-50 rounded p-1.5">
+                                <p class="text-[10px] text-gray-500">Warning</p>
+                                <p class="font-semibold text-amber-600 text-xs">70-85%</p>
+                            </div>
+                            <div class="bg-red-50 rounded p-1.5">
+                                <p class="text-[10px] text-gray-500">Critical</p>
+                                <p class="font-semibold text-red-600 text-xs">&gt;85%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 2 -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                <!-- City-wise Distribution -->
+                <div class="chart-container p-4 relative" id="cityChartContainer">
+                    <span class="cross-filter-indicator" id="cityFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('city')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-city text-teal-500 mr-2"></i>Claims by City</h3>
+                        <div class="visual-actions">
+                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('city')"><i class="fas fa-expand"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-md">
+                        <canvas id="cityChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Hospital Distribution -->
+                <div class="chart-container p-4 relative" id="hospitalChartContainer">
+                    <span class="cross-filter-indicator" id="hospitalFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('hospital')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-hospital text-blue-500 mr-2"></i>Top Hospitals (HSP)</h3>
+                        <div class="visual-actions">
+                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('hospital')"><i class="fas fa-expand"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-md">
+                        <canvas id="hospitalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 3 -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+                <!-- Claim Status Distribution -->
+                <div class="chart-container p-4 relative" id="claimTypeChartContainer">
+                    <span class="cross-filter-indicator" id="claimTypeFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('claimType')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-chart-pie text-purple-500 mr-2"></i>Claim Status Split</h3>
+                        <div class="visual-actions">
+                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('claimType')"><i class="fas fa-expand"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-sm">
+                        <canvas id="claimTypeChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Claim Type vs Status Table -->
+                <div class="chart-container p-4 relative" id="claimTypeStatusContainer">
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-table text-blue-500 mr-2"></i>Claim Type vs Status</h3>
+                        <div class="visual-actions">
+                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('claimTypeStatus')"><i class="fas fa-expand"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-sm overflow-auto">
+                        <div id="claimTypeStatusTable"></div>
+                    </div>
+                </div>
+
+                <!-- Claim Amount Distribution -->
+                <div class="chart-container p-4 relative" id="distributionChartContainer">
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-chart-bar text-green-500 mr-2"></i>Amount Distribution</h3>
+                        <div class="visual-actions">
+                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('distribution')"><i class="fas fa-expand"></i></div>
+                        </div>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-sm">
+                        <canvas id="distributionChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Payout Matrix -->
+            <div class="chart-container p-4 mb-5">
+                <div class="visual-header">
+                    <h3 class="chart-title"><i class="fas fa-th text-indigo-500 mr-2"></i>Payout Ratio Matrix (Disease × City)</h3>
+                    <div class="visual-actions">
+                        <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('matrix')"><i class="fas fa-expand"></i></div>
+                    </div>
+                </div>
+                <div id="matrixContainer" class="overflow-x-auto mt-3"></div>
+            </div>
+
+            <!-- Insights Panel -->
+            <div class="chart-container p-4">
+                <div class="visual-header">
+                    <h3 class="chart-title"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Smart Insights</h3>
+                </div>
+                <div id="insightsPanel" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="bg-gray-900 text-gray-400 py-4 text-center text-sm mt-8">
+        <p>Claims Analytics Dashboard • Interactive Power BI Style • Cross-filtering enabled</p>
+    </footer>
+
+    <script>
+        // Global state
+        let rawData = [];
+        let filteredData = [];
+        let charts = {};
+        let columnMapping = {};
+        let crossFilters = {
+            disease: null,
+            city: null,
+            hospital: null,
+            claimType: null
+        };
+
+        // Chart.js defaults
+        Chart.defaults.font.family = "'Segoe UI', sans-serif";
+        Chart.defaults.plugins.legend.labels.usePointStyle = true;
+
+        // File Upload Handlers
+        const uploadZone = document.getElementById('uploadZone');
+        const fileInput = document.getElementById('fileInput');
+
+        uploadZone.addEventListener('click', () => fileInput.click());
+        uploadZone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadZone.classList.add('dragover');
+        });
+        uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('dragover'));
+        uploadZone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) processFile(file);
+        });
+        fileInput.addEventListener('change', (e) => {
+            const file = e.target.files[0];
+            if (file) processFile(file);
+        });
+
+        function showLoading(show) {
+            document.getElementById('loadingOverlay').classList.toggle('show', show);
+        }
+
+        function processFile(file) {
+            showLoading(true);
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                try {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const sheetName = workbook.SheetNames[0];
+                    const worksheet = workbook.Sheets[sheetName];
+                    rawData = XLSX.utils.sheet_to_json(worksheet);
+                    
+                    if (rawData.length > 0) {
+                        autoMapColumns(Object.keys(rawData[0]));
+                        initializeDashboard();
+                    }
+                } catch (error) {
+                    alert('Error processing file: ' + error.message);
+                }
+                showLoading(false);
+            };
+            reader.readAsArrayBuffer(file);
+        }
+
+        function autoMapColumns(columns) {
+            columnMapping = {
+                employeeCode: findColumn(columns, ['employee code', 'emp code', 'empcode', 'emp_code', 'employee_code', 'code', 'id', 'member id']),
+                employeeName: findColumn(columns, ['employee name', 'name', 'member name', 'emp name', 'empname']),
+                claimType: findColumn(columns, ['claims', 'claim type', 'claimtype', 'type', 'claim_type']),
+                category: findColumn(columns, ['category', 'status', 'claim status', 'process status', 'claim category']),
+                disease: findColumn(columns, ['icd', 'disease', 'diagnosis', 'ailment', 'illness', 'condition', 'disease type', 'diseasetype', 'icd code', 'icd description']),
+                hospital: findColumn(columns, ['hsp', 'hospital', 'provider', 'facility', 'hospital name', 'hospitalname', 'hsp name']),
+                city: findColumn(columns, ['city', 'location', 'place', 'hospital city']),
+                claimedAmount: findColumn(columns, ['claimed', 'claim amount', 'claimed amount', 'billed', 'total claimed', 'total_amount', 'total amount']),
+                paidAmount: findColumn(columns, ['paid', 'paid amount', 'settled', 'approved', 'reimbursed', 'amount paid', 'claim paid']),
+                sumInsured: findColumn(columns, ['si', 'sum insured', 'suminsured', 'sum_insured', 'coverage', 'insured', 'limit', 'si amount'])
+            };
+            console.log('Column Mapping:', columnMapping);
+        }
+        
+        // Helper function to check if a claim is "In Process"
+        function isInProcess(row) {
+            const category = String(getValue(row, 'category') || '').toLowerCase().replace(/[\s\-_]/g, '');
+            const claimType = String(getValue(row, 'claimType') || '').toLowerCase().replace(/[\s\-_]/g, '');
+            
+            const inProcessPatterns = ['inprocess', 'pending', 'underprocess', 'processing', 'inprogress', 'awaiting', 'open', 'submitted', 'review'];
+            
+            return inProcessPatterns.some(pattern => 
+                category.includes(pattern) || claimType.includes(pattern)
+            );
+        }
+        
+        // Helper function to match claim status for cross-filtering
+        function matchesClaimStatus(row, status) {
+            if (!status) return true;
+            
+            const category = String(getValue(row, 'category') || '').toLowerCase().replace(/[\s\-_]/g, '');
+            
+            if (status === 'Settled') {
+                return category.includes('settled') || category.includes('approved') || category.includes('paid') || category.includes('closed');
+            } else if (status === 'In Process') {
+                return category.includes('inprocess') || category.includes('pending') || category.includes('processing') || category.includes('open') || category.includes('submitted') || category.includes('review') || category.includes('progress');
+            } else if (status === 'Denied') {
+                return category.includes('denied') || category.includes('rejected') || category.includes('declined');
+            }
+            
+            return false;
+        }
+
+        function findColumn(columns, keywords) {
+            const lowerColumns = columns.map(c => c.toLowerCase().trim());
+            for (let keyword of keywords) {
+                const exactMatch = columns.find((c, i) => lowerColumns[i] === keyword.toLowerCase());
+                if (exactMatch) return exactMatch;
+            }
+            for (let keyword of keywords) {
+                const partialMatch = columns.find((c, i) => lowerColumns[i].includes(keyword.toLowerCase()));
+                if (partialMatch) return partialMatch;
+            }
+            return null;
+        }
+
+        function getValue(row, field) {
+            if (columnMapping[field]) {
+                return row[columnMapping[field]];
+            }
+            const keys = Object.keys(row);
+            const found = keys.find(k => k.toLowerCase().includes(field.toLowerCase()));
+            return found ? row[found] : '';
+        }
+
+        function getNumericValue(row, field) {
+            let val = getValue(row, field);
+            if (typeof val === 'string') {
+                val = parseFloat(val.replace(/[₹,\s]/g, '')) || 0;
+            }
+            return Number(val) || 0;
+        }
+
+        function showUpload() {
+            document.getElementById('uploadSection').classList.remove('hidden');
+            document.getElementById('dashboardContent').classList.add('hidden');
+        }
+
+        function initializeDashboard() {
+            document.getElementById('uploadSection').classList.add('hidden');
+            document.getElementById('dashboardContent').classList.remove('hidden');
+            document.getElementById('lastUpdated').textContent = `Last updated: ${new Date().toLocaleString()}`;
+            
+            populateFilters();
+            filteredData = [...rawData];
+            updateDashboard();
+        }
+
+        function populateFilters() {
+            const diseases = [...new Set(rawData.map(r => getValue(r, 'disease')).filter(Boolean))].sort();
+            const cities = [...new Set(rawData.map(r => getValue(r, 'city')).filter(Boolean))].sort();
+            const claimTypes = [...new Set(rawData.map(r => getValue(r, 'claimType')).filter(Boolean))].sort();
+            const hospitals = [...new Set(rawData.map(r => getValue(r, 'hospital')).filter(Boolean))].sort();
+
+            populateSelect('diseaseFilter', diseases, 'All Disease Types');
+            populateSelect('cityFilter', cities, 'All Cities');
+            populateSelect('claimTypeFilter', claimTypes, 'All Claims (Cashless/Reimb)');
+            populateSelect('hospitalFilter', hospitals, 'All Hospitals');
+
+            ['diseaseFilter', 'cityFilter', 'claimTypeFilter', 'hospitalFilter'].forEach(id => {
+                document.getElementById(id).addEventListener('change', applyFilters);
+            });
+            document.getElementById('searchEmployee').addEventListener('input', debounce(applyFilters, 300));
+        }
+
+        function populateSelect(id, options, defaultText) {
+            const select = document.getElementById(id);
+            select.innerHTML = `<option value="all">${defaultText}</option>`;
+            options.forEach(opt => {
+                if (opt) select.innerHTML += `<option value="${opt}">${opt}</option>`;
+            });
+        }
+
+        function debounce(func, wait) {
+            let timeout;
+            return function(...args) {
+                clearTimeout(timeout);
+                timeout = setTimeout(() => func.apply(this, args), wait);
+            };
+        }
+
+        function applyFilters() {
+            const diseaseFilter = document.getElementById('diseaseFilter').value;
+            const cityFilter = document.getElementById('cityFilter').value;
+            const claimTypeFilter = document.getElementById('claimTypeFilter').value;
+            const hospitalFilter = document.getElementById('hospitalFilter').value;
+            const searchTerm = document.getElementById('searchEmployee').value.toLowerCase();
+
+            filteredData = rawData.filter(row => {
+                const matchDisease = diseaseFilter === 'all' || getValue(row, 'disease') === diseaseFilter;
+                const matchCity = cityFilter === 'all' || getValue(row, 'city') === cityFilter;
+                const matchClaimType = claimTypeFilter === 'all' || getValue(row, 'claimType') === claimTypeFilter || matchesClaimStatus(row, claimTypeFilter);
+                const matchHospital = hospitalFilter === 'all' || getValue(row, 'hospital') === hospitalFilter;
+                const matchSearch = !searchTerm || 
+                    String(getValue(row, 'employeeName')).toLowerCase().includes(searchTerm) ||
+                    String(getValue(row, 'employeeCode')).toLowerCase().includes(searchTerm);
+                
+                // Apply cross-filters
+                const matchCrossDisease = !crossFilters.disease || getValue(row, 'disease') === crossFilters.disease;
+                const matchCrossCity = !crossFilters.city || getValue(row, 'city') === crossFilters.city;
+                const matchCrossHospital = !crossFilters.hospital || getValue(row, 'hospital') === crossFilters.hospital;
+                const matchCrossClaimType = !crossFilters.claimType || getValue(row, 'claimType') === crossFilters.claimType || matchesClaimStatus(row, crossFilters.claimType);
+                
+                return matchDisease && matchCity && matchClaimType && matchHospital && matchSearch &&
+                       matchCrossDisease && matchCrossCity && matchCrossHospital && matchCrossClaimType;
+            });
+
+            updateActiveFiltersBar();
+            updateDashboard();
+        }
+
+        function updateActiveFiltersBar() {
+            const tags = [];
+            const diseaseFilter = document.getElementById('diseaseFilter').value;
+            const cityFilter = document.getElementById('cityFilter').value;
+            const claimTypeFilter = document.getElementById('claimTypeFilter').value;
+            const hospitalFilter = document.getElementById('hospitalFilter').value;
+            const searchTerm = document.getElementById('searchEmployee').value;
+
+            if (diseaseFilter !== 'all') tags.push({ type: 'disease', value: diseaseFilter });
+            if (cityFilter !== 'all') tags.push({ type: 'city', value: cityFilter });
+            if (claimTypeFilter !== 'all') tags.push({ type: 'claimType', value: claimTypeFilter });
+            if (hospitalFilter !== 'all') tags.push({ type: 'hospital', value: hospitalFilter });
+            if (searchTerm) tags.push({ type: 'search', value: `"${searchTerm}"` });
+            
+            Object.entries(crossFilters).forEach(([key, value]) => {
+                if (value) tags.push({ type: `cross-${key}`, value: value, isCross: true });
+            });
+
+            const bar = document.getElementById('activeFiltersBar');
+            const container = document.getElementById('activeFilterTags');
+            
+            if (tags.length > 0) {
+                bar.classList.remove('hidden');
+                container.innerHTML = tags.map(tag => `
+                    <span class="filter-tag ${tag.isCross ? 'bg-indigo-100 text-indigo-700' : ''}">
+                        ${tag.isCross ? '<i class="fas fa-link text-xs"></i>' : ''}
+                        ${tag.value}
+                        <span class="remove" onclick="removeFilter('${tag.type}')">&times;</span>
+                    </span>
+                `).join('');
+            } else {
+                bar.classList.add('hidden');
+            }
+
+            // Update filter indicators
+            ['disease', 'city', 'hospital', 'claimType'].forEach(type => {
+                const indicator = document.getElementById(`${type}FilterIndicator`);
+                if (indicator) {
+                    indicator.classList.toggle('show', crossFilters[type] !== null);
+                }
+            });
+        }
+
+        function removeFilter(type) {
+            if (type.startsWith('cross-')) {
+                const crossType = type.replace('cross-', '');
+                crossFilters[crossType] = null;
+            } else if (type === 'disease') {
+                document.getElementById('diseaseFilter').value = 'all';
+            } else if (type === 'city') {
+                document.getElementById('cityFilter').value = 'all';
+            } else if (type === 'claimType') {
+                document.getElementById('claimTypeFilter').value = 'all';
+            } else if (type === 'hospital') {
+                document.getElementById('hospitalFilter').value = 'all';
+            } else if (type === 'search') {
+                document.getElementById('searchEmployee').value = '';
+            }
+            applyFilters();
+        }
+
+        function resetFilters() {
+            document.getElementById('diseaseFilter').value = 'all';
+            document.getElementById('cityFilter').value = 'all';
+            document.getElementById('claimTypeFilter').value = 'all';
+            document.getElementById('hospitalFilter').value = 'all';
+            document.getElementById('searchEmployee').value = '';
+            crossFilters = { disease: null, city: null, hospital: null, claimType: null };
+            filteredData = [...rawData];
+            updateActiveFiltersBar();
+            updateDashboard();
+        }
+
+        function clearChartFilter(type) {
+            crossFilters[type] = null;
+            applyFilters();
+        }
+
+        function applyCrossFilter(type, value) {
+            if (crossFilters[type] === value) {
+                crossFilters[type] = null; // Toggle off
+            } else {
+                crossFilters[type] = value;
+            }
+            applyFilters();
+        }
+
+        function updateDashboard() {
+            updateKPIs();
+            updateCharts();
+            updateMatrix();
+            generateInsights();
+        }
+
+        function updateKPIs() {
+            const totalClaimed = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
+            const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
+            const totalSI = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'sumInsured'), 0);
+            
+            const payoutRatio = totalClaimed > 0 ? (totalPaid / totalClaimed * 100) : 0;
+            
+            const paidAmounts = filteredData.map(r => getNumericValue(r, 'paidAmount')).filter(v => v > 0).sort((a, b) => a - b);
+            const avgClaim = paidAmounts.length > 0 ? paidAmounts.reduce((a, b) => a + b, 0) / paidAmounts.length : 0;
+            const medianClaim = paidAmounts.length > 0 ? paidAmounts[Math.floor(paidAmounts.length / 2)] : 0;
+            
+            const highValueThreshold = 100000;
+            const highValueClaims = filteredData.filter(r => getNumericValue(r, 'paidAmount') > highValueThreshold).length;
+            
+            // In-Process Claims calculation
+            const inProcessClaims = filteredData.filter(r => isInProcess(r));
+            const inProcessCount = inProcessClaims.length;
+            const inProcessAmount = inProcessClaims.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
+            
+            // Outstanding Amount calculation (Claimed - Paid for in-process claims)
+            const outstandingAmount = inProcessClaims.reduce((sum, r) => {
+                const claimed = getNumericValue(r, 'claimedAmount');
+                const paid = getNumericValue(r, 'paidAmount');
+                return sum + Math.max(claimed - paid, 0);
+            }, 0);
+
+            // Animate KPI updates
+            animateValue('kpiPayoutRatio', payoutRatio, '%', 1);
+            document.getElementById('payoutRatioBar').style.width = `${Math.min(payoutRatio, 100)}%`;
+            document.getElementById('payoutRatioBar').className = `h-2 rounded-full transition-all duration-500 ${
+                payoutRatio >= 85 ? 'bg-green-500' : payoutRatio >= 70 ? 'bg-green-500' : 'bg-amber-500'
+            }`;
+            document.getElementById('kpiPayoutTrend').innerHTML = payoutRatio >= 85 
+                ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Excellent</span>'
+                : payoutRatio >= 70 
+                    ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Good</span>'
+                    : '<span class="text-amber-600"><i class="fas fa-exclamation-circle"></i> Review</span>';
+
+            document.getElementById('kpiTotalClaims').textContent = formatCurrency(totalPaid);
+            document.getElementById('kpiClaimsCount').textContent = `${filteredData.length.toLocaleString()} claims`;
+
+            document.getElementById('kpiAvgClaim').textContent = formatCurrency(avgClaim);
+            document.getElementById('kpiMedianClaim').textContent = `Median: ${formatCurrency(medianClaim)}`;
+
+            document.getElementById('kpiSumInsured').textContent = formatCurrency(totalSI);
+            const utilization = totalSI > 0 ? (totalPaid / totalSI * 100) : 0;
+            document.getElementById('kpiUtilization').innerHTML = `<span class="${utilization > 50 ? 'text-amber-600' : 'text-green-600'}">${utilization.toFixed(1)}% utilized</span>`;
+
+            document.getElementById('kpiHighValue').textContent = highValueClaims.toLocaleString();
+            document.getElementById('kpiHighValuePct').textContent = `${((highValueClaims / Math.max(filteredData.length, 1)) * 100).toFixed(1)}% of total`;
+            
+            // Update Outstanding KPI
+            document.getElementById('kpiOutstanding').textContent = formatCurrency(outstandingAmount);
+            document.getElementById('kpiOutstandingCount').textContent = `${inProcessCount} pending`;
+        }
+
+        function animateValue(elementId, endValue, suffix = '', decimals = 0) {
+            const el = document.getElementById(elementId);
+            const duration = 500;
+            const startTime = performance.now();
+            const startValue = parseFloat(el.textContent) || 0;
+            
+            function update(currentTime) {
+                const elapsed = currentTime - startTime;
+                const progress = Math.min(elapsed / duration, 1);
+                const current = startValue + (endValue - startValue) * easeOutQuart(progress);
+                el.textContent = current.toFixed(decimals) + suffix;
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        function easeOutQuart(x) {
+            return 1 - Math.pow(1 - x, 4);
+        }
+
+        function formatCurrency(value) {
+            if (value >= 10000000) return `₹${(value / 10000000).toFixed(2)}Cr`;
+            if (value >= 100000) return `₹${(value / 100000).toFixed(2)}L`;
+            if (value >= 1000) return `₹${(value / 1000).toFixed(1)}K`;
+            return `₹${value.toFixed(0)}`;
+        }
+
+        function updateCharts() {
+            updateDiseaseChart();
+            updateGaugeChart();
+            updateCityChart();
+            updateHospitalChart();
+            updateClaimTypeChart();
+            updateClaimTypeStatusTable();
+            updateDistributionChart();
+        }
+
+        function createGradient(ctx, color1, color2, horizontal = false) {
+            const gradient = horizontal 
+                ? ctx.createLinearGradient(0, 0, ctx.canvas.width, 0)
+                : ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+            gradient.addColorStop(0, color1);
+            gradient.addColorStop(1, color2);
+            return gradient;
+        }
+
+        function updateDiseaseChart() {
+            const ctx = document.getElementById('diseaseChart').getContext('2d');
+            const grouped = {};
+            
+            filteredData.forEach(row => {
+                const disease = getValue(row, 'disease') || 'Unknown';
+                if (!grouped[disease]) grouped[disease] = { paid: 0, claimed: 0, count: 0 };
+                grouped[disease].paid += getNumericValue(row, 'paidAmount');
+                grouped[disease].claimed += getNumericValue(row, 'claimedAmount');
+                grouped[disease].count++;
+            });
+
+            const sorted = Object.entries(grouped).sort((a, b) => b[1].paid - a[1].paid).slice(0, 10);
+            
+            // Create gradients for each bar
+            const gradientColors = sorted.map((_, i) => {
+                const gradient = ctx.createLinearGradient(0, 0, ctx.canvas.width * 0.6, 0);
+                const hue = 250 - (i * 18);
+                gradient.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.9)`);
+                gradient.addColorStop(1, `hsla(${hue}, 90%, 45%, 1)`);
+                return gradient;
+            });
+
+            if (charts.disease) charts.disease.destroy();
+            charts.disease = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s[0].length > 20 ? s[0].substring(0, 20) + '...' : s[0]),
+                    datasets: [{
+                        label: 'Paid Amount',
+                        data: sorted.map(s => s[1].paid),
+                        backgroundColor: gradientColors,
+                        borderWidth: sorted.map((s) => crossFilters.disease === s[0] ? 2 : 0),
+                        borderColor: '#1e293b',
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const index = elements[0].index;
+                            const disease = sorted[index][0];
+                            applyCrossFilter('disease', disease);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            titleFont: { size: 11 },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                title: (items) => sorted[items[0].dataIndex][0],
+                                label: (context) => {
+                                    const data = sorted[context.dataIndex][1];
+                                    return [
+                                        `Paid: ${formatCurrency(data.paid)}`,
+                                        `Claimed: ${formatCurrency(data.claimed)}`,
+                                        `Claims: ${data.count}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 }, callback: (v) => formatCurrency(v) },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        y: {
+                            ticks: { font: { size: 10 } },
+                            grid: { display: false }
+                        }
+                    },
+                    onHover: (e, elements) => {
+                        e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
+        function updateGaugeChart() {
+            const ctx = document.getElementById('gaugeChart').getContext('2d');
+            const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
+            const totalClaimed = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
+            const payoutRatio = totalClaimed > 0 ? (totalPaid / totalClaimed * 100) : 0;
+
+            if (charts.gauge) charts.gauge.destroy();
+            charts.gauge = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: ['Payout Ratio', 'Remaining'],
+                    datasets: [{
+                        data: [Math.min(payoutRatio, 100), Math.max(100 - payoutRatio, 0)],
+                        backgroundColor: [
+                            payoutRatio <= 70 ? '#10b981' : payoutRatio <= 85 ? '#f59e0b' : '#ef4444',
+                            '#e5e7eb'
+                        ],
+                        borderWidth: 0
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    cutout: '75%',
+                    rotation: -90,
+                    circumference: 180,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { enabled: false }
+                    }
+                },
+                plugins: [{
+                    id: 'gaugeText',
+                    beforeDraw: (chart) => {
+                        const { ctx, width, height } = chart;
+                        ctx.save();
+                        ctx.font = 'bold 28px Segoe UI';
+                        ctx.fillStyle = payoutRatio <= 70 ? '#10b981' : payoutRatio <= 85 ? '#f59e0b' : '#ef4444';
+                        ctx.textAlign = 'center';
+                        ctx.fillText(`${payoutRatio.toFixed(1)}%`, width / 2, height - 30);
+                        ctx.font = '12px Segoe UI';
+                        ctx.fillStyle = '#64748b';
+                        ctx.fillText('Payout Ratio', width / 2, height - 10);
+                        ctx.restore();
+                    }
+                }]
+            });
+        }
+
+        function updateCityChart() {
+            const ctx = document.getElementById('cityChart').getContext('2d');
+            const grouped = {};
+            
+            filteredData.forEach(row => {
+                const city = getValue(row, 'city') || 'Unknown';
+                if (!grouped[city]) grouped[city] = { paid: 0, si: 0, count: 0 };
+                grouped[city].paid += getNumericValue(row, 'paidAmount');
+                grouped[city].si += getNumericValue(row, 'sumInsured');
+                grouped[city].count++;
+            });
+
+            const sorted = Object.entries(grouped).sort((a, b) => b[1].paid - a[1].paid).slice(0, 8);
+            
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+            gradient.addColorStop(0, 'rgba(6, 182, 212, 0.9)');
+            gradient.addColorStop(1, 'rgba(59, 130, 246, 0.9)');
+
+            if (charts.city) charts.city.destroy();
+            charts.city = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s[0]),
+                    datasets: [{
+                        label: 'Total Paid',
+                        data: sorted.map(s => s[1].paid),
+                        backgroundColor: sorted.map(s => crossFilters.city === s[0] ? '#0891b2' : gradient),
+                        borderColor: '#0891b2',
+                        borderWidth: sorted.map(s => crossFilters.city === s[0] ? 2 : 0),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const city = sorted[elements[0].index][0];
+                            applyCrossFilter('city', city);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            titleFont: { size: 11 },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                label: (context) => {
+                                    const data = sorted[context.dataIndex][1];
+                                    return [`Paid: ${formatCurrency(data.paid)}`, `Claims: ${data.count}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 }, callback: (v) => formatCurrency(v) },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+                    },
+                    onHover: (e, elements) => {
+                        e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
+        function updateHospitalChart() {
+            const ctx = document.getElementById('hospitalChart').getContext('2d');
+            const grouped = {};
+            
+            filteredData.forEach(row => {
+                const hospital = getValue(row, 'hospital') || 'Unknown';
+                if (!grouped[hospital]) grouped[hospital] = { paid: 0, count: 0 };
+                grouped[hospital].paid += getNumericValue(row, 'paidAmount');
+                grouped[hospital].count++;
+            });
+
+            const sorted = Object.entries(grouped).sort((a, b) => b[1].paid - a[1].paid).slice(0, 8);
+            
+            // Create gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, ctx.canvas.height);
+            gradient.addColorStop(0, 'rgba(16, 185, 129, 0.9)');
+            gradient.addColorStop(1, 'rgba(5, 150, 105, 0.9)');
+
+            if (charts.hospital) charts.hospital.destroy();
+            charts.hospital = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: sorted.map(s => s[0].length > 15 ? s[0].substring(0, 15) + '...' : s[0]),
+                    datasets: [{
+                        label: 'Total Paid',
+                        data: sorted.map(s => s[1].paid),
+                        backgroundColor: sorted.map(s => crossFilters.hospital === s[0] ? '#059669' : gradient),
+                        borderColor: '#059669',
+                        borderWidth: sorted.map(s => crossFilters.hospital === s[0] ? 2 : 0),
+                        borderRadius: 4
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const hospital = sorted[elements[0].index][0];
+                            applyCrossFilter('hospital', hospital);
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            titleFont: { size: 11 },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                title: (items) => sorted[items[0].dataIndex][0],
+                                label: (context) => {
+                                    const data = sorted[context.dataIndex][1];
+                                    return [`Paid: ${formatCurrency(data.paid)}`, `Claims: ${data.count}`];
+                                }
+                            }
+                        }
+                    },
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            ticks: { font: { size: 10 }, callback: (v) => formatCurrency(v) },
+                            grid: { color: '#f1f5f9' }
+                        },
+                        x: { ticks: { font: { size: 10 } }, grid: { display: false } }
+                    },
+                    onHover: (e, elements) => {
+                        e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
+        function updateClaimTypeChart() {
+            const ctx = document.getElementById('claimTypeChart').getContext('2d');
+            const grouped = {
+                'Settled': { count: 0, amount: 0 },
+                'In Process': { count: 0, amount: 0 },
+                'Denied': { count: 0, amount: 0 }
+            };
+            
+            filteredData.forEach(row => {
+                const category = String(getValue(row, 'category') || '').toLowerCase().replace(/[\s\-_]/g, '');
+                
+                if (category.includes('settled') || category.includes('approved') || category.includes('paid') || category.includes('closed')) {
+                    grouped['Settled'].count++;
+                    grouped['Settled'].amount += getNumericValue(row, 'paidAmount');
+                } else if (category.includes('denied') || category.includes('rejected') || category.includes('declined')) {
+                    grouped['Denied'].count++;
+                    grouped['Denied'].amount += getNumericValue(row, 'claimedAmount');
+                } else if (category.includes('inprocess') || category.includes('pending') || category.includes('processing') || category.includes('open') || category.includes('submitted') || category.includes('review') || category.includes('progress')) {
+                    grouped['In Process'].count++;
+                    grouped['In Process'].amount += getNumericValue(row, 'claimedAmount');
+                } else {
+                    // Default to Settled if category is unknown
+                    grouped['Settled'].count++;
+                    grouped['Settled'].amount += getNumericValue(row, 'paidAmount');
+                }
+            });
+
+            // Status-specific colors
+            const statusColors = {
+                'Settled': '#10b981',      // Green
+                'In Process': '#f59e0b',   // Amber
+                'Denied': '#ef4444'        // Red
+            };
+            
+            const labels = Object.keys(grouped).filter(k => grouped[k].count > 0);
+            const backgroundColors = labels.map(l => {
+                const baseColor = statusColors[l];
+                return crossFilters.claimType === l ? baseColor : baseColor + 'cc';
+            });
+
+            const dataValues = labels.map(l => grouped[l].count);
+            const totalCount = dataValues.reduce((a, b) => a + b, 0);
+
+            if (charts.claimType) charts.claimType.destroy();
+            charts.claimType = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        data: dataValues,
+                        backgroundColor: backgroundColors,
+                        borderWidth: labels.map(l => crossFilters.claimType === l ? 3 : 1),
+                        borderColor: '#fff'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    cutout: '60%',
+                    onClick: (e, elements) => {
+                        if (elements.length > 0) {
+                            const status = labels[elements[0].index];
+                            applyCrossFilter('claimType', status);
+                        }
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                            labels: { padding: 8, font: { size: 10 }, usePointStyle: true }
+                        },
+                        tooltip: {
+                            titleFont: { size: 11 },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                label: (context) => {
+                                    const status = labels[context.dataIndex];
+                                    const data = grouped[status];
+                                    const pct = ((data.count / totalCount) * 100).toFixed(1);
+                                    return [
+                                        `Claims: ${data.count} (${pct}%)`,
+                                        `Amount: ${formatCurrency(data.amount)}`
+                                    ];
+                                }
+                            }
+                        }
+                    },
+                    onHover: (e, elements) => {
+                        e.native.target.style.cursor = elements.length ? 'pointer' : 'default';
+                    }
+                }
+            });
+        }
+
+        // Helper function to normalize claim type names (Cashless or Reimbursement)
+        function normalizeClaimType(type) {
+            if (!type) return 'Unknown';
+            const normalized = String(type).toLowerCase().trim().replace(/[\s\-_]+/g, '');
+            
+            // Map to Cashless or Reimbursement
+            if (normalized.includes('cashless') || normalized.includes('cash less') || normalized.includes('network')) {
+                return 'Cashless';
+            } else if (normalized.includes('reimbursement') || normalized.includes('reimburse') || normalized.includes('reim')) {
+                return 'Reimbursement';
+            }
+            
+            // Return original with proper casing if no match
+            return type.charAt(0).toUpperCase() + type.slice(1).toLowerCase();
+        }
+
+        // Helper function to get claim status
+        function getClaimStatus(row) {
+            const category = String(getValue(row, 'category') || '').toLowerCase().replace(/[\s\-_]/g, '');
+            
+            if (category.includes('settled') || category.includes('approved') || category.includes('paid') || category.includes('closed')) {
+                return 'Settled';
+            } else if (category.includes('denied') || category.includes('rejected') || category.includes('declined')) {
+                return 'Denied';
+            } else if (category.includes('inprocess') || category.includes('pending') || category.includes('processing') || category.includes('open') || category.includes('submitted') || category.includes('review') || category.includes('progress')) {
+                return 'In Process';
+            }
+            
+            return 'Settled'; // Default
+        }
+
+        function updateClaimTypeStatusTable() {
+            // Group data by Claim Type and Status
+            const claimTypes = {};
+            const statuses = ['Settled', 'In Process', 'Denied'];
+            
+            filteredData.forEach(row => {
+                const claimType = normalizeClaimType(getValue(row, 'claimType'));
+                const status = getClaimStatus(row);
+                
+                if (!claimTypes[claimType]) {
+                    claimTypes[claimType] = {
+                        'Settled': 0,
+                        'In Process': 0,
+                        'Denied': 0,
+                        'Total': 0
+                    };
+                }
+                
+                claimTypes[claimType][status]++;
+                claimTypes[claimType]['Total']++;
+            });
+            
+            // Sort by total claims descending
+            const sortedTypes = Object.entries(claimTypes).sort((a, b) => b[1].Total - a[1].Total);
+            
+            // Calculate totals for each status
+            const statusTotals = {
+                'Settled': 0,
+                'In Process': 0,
+                'Denied': 0,
+                'Total': 0
+            };
+            
+            sortedTypes.forEach(([_, data]) => {
+                statuses.forEach(s => statusTotals[s] += data[s]);
+                statusTotals.Total += data.Total;
+            });
+            
+            // Build HTML table
+            let html = `
+                <table class="w-full text-xs border-collapse">
+                    <thead>
+                        <tr class="bg-gray-100">
+                            <th class="px-2 py-2 text-left font-semibold border-b">Claim Type</th>
+                            <th class="px-2 py-2 text-center font-semibold border-b text-green-700">
+                                <i class="fas fa-check-circle mr-1"></i>Settled
+                            </th>
+                            <th class="px-2 py-2 text-center font-semibold border-b text-amber-600">
+                                <i class="fas fa-clock mr-1"></i>In Process
+                            </th>
+                            <th class="px-2 py-2 text-center font-semibold border-b text-red-600">
+                                <i class="fas fa-times-circle mr-1"></i>Denied
+                            </th>
+                            <th class="px-2 py-2 text-center font-semibold border-b text-gray-700">Total</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            sortedTypes.forEach(([claimType, data]) => {
+                const settledPct = data.Total > 0 ? ((data.Settled / data.Total) * 100).toFixed(0) : 0;
+                const inProcessPct = data.Total > 0 ? ((data['In Process'] / data.Total) * 100).toFixed(0) : 0;
+                const deniedPct = data.Total > 0 ? ((data.Denied / data.Total) * 100).toFixed(0) : 0;
+                
+                html += `
+                    <tr class="border-b hover:bg-gray-50">
+                        <td class="px-2 py-2 font-medium">${claimType}</td>
+                        <td class="px-2 py-2 text-center">
+                            <span class="text-green-700 font-semibold">${data.Settled}</span>
+                            <span class="text-gray-400 text-[10px] ml-1">(${settledPct}%)</span>
+                        </td>
+                        <td class="px-2 py-2 text-center">
+                            <span class="text-amber-600 font-semibold">${data['In Process']}</span>
+                            <span class="text-gray-400 text-[10px] ml-1">(${inProcessPct}%)</span>
+                        </td>
+                        <td class="px-2 py-2 text-center">
+                            <span class="text-red-600 font-semibold">${data.Denied}</span>
+                            <span class="text-gray-400 text-[10px] ml-1">(${deniedPct}%)</span>
+                        </td>
+                        <td class="px-2 py-2 text-center font-bold text-gray-700">${data.Total}</td>
+                    </tr>
+                `;
+            });
+            
+            // Add totals row
+            const totalSettledPct = statusTotals.Total > 0 ? ((statusTotals.Settled / statusTotals.Total) * 100).toFixed(0) : 0;
+            const totalInProcessPct = statusTotals.Total > 0 ? ((statusTotals['In Process'] / statusTotals.Total) * 100).toFixed(0) : 0;
+            const totalDeniedPct = statusTotals.Total > 0 ? ((statusTotals.Denied / statusTotals.Total) * 100).toFixed(0) : 0;
+            
+            html += `
+                    <tr class="bg-gray-100 font-bold">
+                        <td class="px-2 py-2">Total</td>
+                        <td class="px-2 py-2 text-center text-green-700">${statusTotals.Settled} <span class="text-gray-500 text-[10px]">(${totalSettledPct}%)</span></td>
+                        <td class="px-2 py-2 text-center text-amber-600">${statusTotals['In Process']} <span class="text-gray-500 text-[10px]">(${totalInProcessPct}%)</span></td>
+                        <td class="px-2 py-2 text-center text-red-600">${statusTotals.Denied} <span class="text-gray-500 text-[10px]">(${totalDeniedPct}%)</span></td>
+                        <td class="px-2 py-2 text-center text-gray-800">${statusTotals.Total}</td>
+                    </tr>
+                </tbody>
+                </table>
+            `;
+            
+            document.getElementById('claimTypeStatusTable').innerHTML = html;
+        }
+
+        function updateDistributionChart() {
+            const ctx = document.getElementById('distributionChart').getContext('2d');
+            const amounts = filteredData.map(r => getNumericValue(r, 'paidAmount')).filter(v => v > 0);
+            
+            const buckets = {
+                '0-10K': 0, '10-25K': 0, '25-50K': 0, '50K-1L': 0,
+                '1-2.5L': 0, '2.5-5L': 0, '5L+': 0
+            };
+            
+            amounts.forEach(amt => {
+                if (amt <= 10000) buckets['0-10K']++;
+                else if (amt <= 25000) buckets['10-25K']++;
+                else if (amt <= 50000) buckets['25-50K']++;
+                else if (amt <= 100000) buckets['50K-1L']++;
+                else if (amt <= 250000) buckets['1-2.5L']++;
+                else if (amt <= 500000) buckets['2.5-5L']++;
+                else buckets['5L+']++;
+            });
+
+            // Create gradient colors from green to red
+            const gradientBars = Object.keys(buckets).map((_, i) => {
+                const hue = 120 - (i * 18);
+                return `hsla(${hue}, 70%, 50%, 0.85)`;
+            });
+
+            if (charts.distribution) charts.distribution.destroy();
+            charts.distribution = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(buckets),
+                    datasets: [{
+                        label: 'Claims',
+                        data: Object.values(buckets),
+                        backgroundColor: gradientBars,
+                        borderRadius: 3
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            titleFont: { size: 11 },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                label: (context) => `${context.raw} claims (${((context.raw / Math.max(amounts.length, 1)) * 100).toFixed(1)}%)`
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, ticks: { font: { size: 10 } }, grid: { color: '#f1f5f9' } },
+                        x: { ticks: { font: { size: 9 } }, grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        function updateMatrix() {
+            const diseases = [...new Set(filteredData.map(r => getValue(r, 'disease')).filter(Boolean))].slice(0, 6);
+            const cities = [...new Set(filteredData.map(r => getValue(r, 'city')).filter(Boolean))].slice(0, 6);
+            
+            const matrix = {};
+            diseases.forEach(d => {
+                matrix[d] = {};
+                cities.forEach(c => {
+                    matrix[d][c] = { paid: 0, si: 0 };
+                });
+            });
+            
+            filteredData.forEach(row => {
+                const disease = getValue(row, 'disease');
+                const city = getValue(row, 'city');
+                if (disease && city && matrix[disease] && matrix[disease][city]) {
+                    matrix[disease][city].paid += getNumericValue(row, 'paidAmount');
+                    matrix[disease][city].si += getNumericValue(row, 'sumInsured');
+                }
+            });
+
+            let html = `
+                <table class="w-full text-sm">
+                    <thead>
+                        <tr>
+                            <th class="px-3 py-2 text-left bg-gray-100 font-semibold">Disease / City</th>
+                            ${cities.map(c => `<th class="px-3 py-2 text-center bg-gray-100 font-semibold">${c}</th>`).join('')}
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            diseases.forEach(disease => {
+                html += `<tr class="border-b hover:bg-gray-50">
+                    <td class="px-3 py-2 font-medium">${disease}</td>`;
+                cities.forEach(city => {
+                    const data = matrix[disease][city];
+                    const ratio = data.si > 0 ? (data.paid / data.si * 100) : 0;
+                    const bgColor = ratio === 0 ? 'bg-gray-100' : 
+                                   ratio <= 70 ? 'bg-green-100' : 
+                                   ratio <= 85 ? 'bg-amber-100' : 'bg-red-100';
+                    const textColor = ratio === 0 ? 'text-gray-400' :
+                                     ratio <= 70 ? 'text-green-700' :
+                                     ratio <= 85 ? 'text-amber-700' : 'text-red-700';
+                    html += `<td class="px-3 py-2 text-center ${bgColor} cursor-pointer hover:opacity-80" 
+                                onclick="applyCrossFilter('disease', '${disease}'); applyCrossFilter('city', '${city}');"
+                                title="Paid: ${formatCurrency(data.paid)}&#10;SI: ${formatCurrency(data.si)}">
+                                <span class="font-bold ${textColor}">${ratio > 0 ? ratio.toFixed(0) + '%' : '-'}</span>
+                            </td>`;
+                });
+                html += '</tr>';
+            });
+            
+            html += '</tbody></table>';
+            html += '<p class="text-xs text-gray-500 mt-3"><span class="inline-block w-3 h-3 bg-green-100 mr-1"></span>≤70% <span class="inline-block w-3 h-3 bg-amber-100 ml-3 mr-1"></span>70-85% <span class="inline-block w-3 h-3 bg-red-100 ml-3 mr-1"></span>&gt;85%</p>';
+            
+            document.getElementById('matrixContainer').innerHTML = html;
+        }
+
+        function generateInsights() {
+            const insights = [];
+            const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
+            const totalSI = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'sumInsured'), 0);
+            const payoutRatio = totalSI > 0 ? (totalPaid / totalSI * 100) : 0;
+            
+            // Disease analysis
+            const diseaseGroup = {};
+            filteredData.forEach(r => {
+                const disease = getValue(r, 'disease') || 'Unknown';
+                if (!diseaseGroup[disease]) diseaseGroup[disease] = 0;
+                diseaseGroup[disease] += getNumericValue(r, 'paidAmount');
+            });
+            const topDisease = Object.entries(diseaseGroup).sort((a, b) => b[1] - a[1])[0];
+            
+            // City analysis
+            const cityGroup = {};
+            filteredData.forEach(r => {
+                const city = getValue(r, 'city') || 'Unknown';
+                if (!cityGroup[city]) cityGroup[city] = 0;
+                cityGroup[city] += getNumericValue(r, 'paidAmount');
+            });
+            const topCity = Object.entries(cityGroup).sort((a, b) => b[1] - a[1])[0];
+            
+            // High frequency claimants
+            const empCount = {};
+            filteredData.forEach(r => {
+                const emp = getValue(r, 'employeeName') || getValue(r, 'employeeCode');
+                if (emp) {
+                    if (!empCount[emp]) empCount[emp] = 0;
+                    empCount[emp]++;
+                }
+            });
+            const frequentClaimants = Object.entries(empCount).filter(e => e[1] > 3).length;
+
+            // Generate insights
+            if (payoutRatio > 85) {
+                insights.push({
+                    icon: 'fas fa-exclamation-triangle',
+                    color: 'red',
+                    title: 'Critical Payout Ratio',
+                    text: `At ${payoutRatio.toFixed(1)}%, the payout ratio is critically high. Immediate review of claims and premium structure recommended.`
+                });
+            } else if (payoutRatio > 70) {
+                insights.push({
+                    icon: 'fas fa-exclamation-circle',
+                    color: 'amber',
+                    title: 'Elevated Payout Ratio',
+                    text: `Payout ratio of ${payoutRatio.toFixed(1)}% is above target. Monitor closely and consider preventive measures.`
+                });
+            } else {
+                insights.push({
+                    icon: 'fas fa-check-circle',
+                    color: 'green',
+                    title: 'Healthy Payout Ratio',
+                    text: `Payout ratio of ${payoutRatio.toFixed(1)}% is within healthy limits. Premium pricing is sustainable.`
+                });
+            }
+
+            if (topDisease) {
+                const pct = ((topDisease[1]/totalPaid)*100).toFixed(1);
+                insights.push({
+                    icon: 'fas fa-disease',
+                    color: 'purple',
+                    title: 'Top Cost Driver',
+                    text: `"${topDisease[0]}" accounts for ${formatCurrency(topDisease[1])} (${pct}% of total). Consider targeted wellness programs.`
+                });
+            }
+
+            if (topCity) {
+                insights.push({
+                    icon: 'fas fa-map-marker-alt',
+                    color: 'blue',
+                    title: 'Geographic Concentration',
+                    text: `${topCity[0]} has highest claims at ${formatCurrency(topCity[1])}. Evaluate hospital network rates here.`
+                });
+            }
+
+            if (frequentClaimants > 0) {
+                insights.push({
+                    icon: 'fas fa-users',
+                    color: 'amber',
+                    title: 'Repeat Claimants',
+                    text: `${frequentClaimants} employees have filed 4+ claims. Consider health management interventions.`
+                });
+            }
+
+            const amounts = filteredData.map(r => getNumericValue(r, 'paidAmount')).filter(v => v > 0);
+            const avgClaim = amounts.length > 0 ? amounts.reduce((a, b) => a + b, 0) / amounts.length : 0;
+            const highValueCount = amounts.filter(a => a > avgClaim * 3).length;
+            
+            if (highValueCount > 0) {
+                insights.push({
+                    icon: 'fas fa-chart-line',
+                    color: 'rose',
+                    title: 'Outlier Detection',
+                    text: `${highValueCount} claims are 3x above average (${formatCurrency(avgClaim)}). These may require review.`
+                });
+            }
+
+            document.getElementById('insightsPanel').innerHTML = insights.map(insight => `
+                <div class="insight-card bg-${insight.color}-50 border border-${insight.color}-200 rounded-lg p-3 hover:shadow-md transition cursor-pointer">
+                    <div class="flex items-start gap-2">
+                        <div class="bg-${insight.color}-100 p-1.5 rounded-lg flex-shrink-0">
+                            <i class="${insight.icon} text-${insight.color}-600 text-xs"></i>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-${insight.color}-800">${insight.title}</h4>
+                            <p class="text-${insight.color}-700 mt-0.5">${insight.text}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Drill-through functions
+        function drillKPI(kpiType) {
+            const modal = document.getElementById('drillModal');
+            const title = document.getElementById('drillTitle');
+            const body = document.getElementById('drillBody');
+            const breadcrumb = document.getElementById('drillBreadcrumb');
+            
+            breadcrumb.innerHTML = '<span onclick="closeDrillModal()">Dashboard</span> <i class="fas fa-chevron-right text-xs"></i> <span class="active">KPI Details</span>';
+            
+            let content = '';
+            
+            switch(kpiType) {
+                case 'payoutRatio':
+                    title.textContent = 'Payout Ratio Analysis';
+                    const prByDisease = {};
+                    filteredData.forEach(r => {
+                        const d = getValue(r, 'disease') || 'Unknown';
+                        if (!prByDisease[d]) prByDisease[d] = { paid: 0, si: 0 };
+                        prByDisease[d].paid += getNumericValue(r, 'paidAmount');
+                        prByDisease[d].si += getNumericValue(r, 'sumInsured');
+                    });
+                    content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Disease</th><th class="text-right p-2 bg-gray-100">Paid</th><th class="text-right p-2 bg-gray-100">SI</th><th class="text-right p-2 bg-gray-100">Payout %</th></tr></thead><tbody>`;
+                    Object.entries(prByDisease).sort((a,b) => (b[1].paid/b[1].si) - (a[1].paid/a[1].si)).slice(0,15).forEach(([disease, data]) => {
+                        const ratio = data.si > 0 ? (data.paid / data.si * 100) : 0;
+                        const color = ratio > 85 ? 'text-red-600' : ratio > 70 ? 'text-amber-600' : 'text-green-600';
+                        content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${disease}</td><td class="p-2 text-right">${formatCurrency(data.paid)}</td><td class="p-2 text-right">${formatCurrency(data.si)}</td><td class="p-2 text-right font-bold ${color}">${ratio.toFixed(1)}%</td></tr>`;
+                    });
+                    content += '</tbody></table>';
+                    break;
+                    
+                case 'totalClaims':
+                    title.textContent = 'Claims Breakdown';
+                    const claimsByType = {};
+                    filteredData.forEach(r => {
+                        const t = getValue(r, 'claimType') || 'Unknown';
+                        if (!claimsByType[t]) claimsByType[t] = { paid: 0, count: 0 };
+                        claimsByType[t].paid += getNumericValue(r, 'paidAmount');
+                        claimsByType[t].count++;
+                    });
+                    content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Type</th><th class="text-right p-2 bg-gray-100">Count</th><th class="text-right p-2 bg-gray-100">Amount</th><th class="text-right p-2 bg-gray-100">Avg</th></tr></thead><tbody>`;
+                    Object.entries(claimsByType).sort((a,b) => b[1].paid - a[1].paid).forEach(([type, data]) => {
+                        content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${type}</td><td class="p-2 text-right">${data.count}</td><td class="p-2 text-right font-medium">${formatCurrency(data.paid)}</td><td class="p-2 text-right">${formatCurrency(data.paid/data.count)}</td></tr>`;
+                    });
+                    content += '</tbody></table>';
+                    break;
+                    
+                default:
+                    title.textContent = 'Detailed View';
+                    content = '<p class="text-gray-500">Detailed drill-through data would appear here.</p>';
+            }
+            
+            body.innerHTML = content;
+            modal.classList.add('show');
+        }
+
+        function closeDrillModal(e) {
+            if (!e || e.target === document.getElementById('drillModal')) {
+                document.getElementById('drillModal').classList.remove('show');
+            }
+        }
+
+        function focusChart(chartId) {
+            alert(`Focus mode for ${chartId} chart - In a full implementation, this would expand the chart to full screen.`);
+        }
+
+        function showRowDetails(row) {
+            const modal = document.getElementById('drillModal');
+            const title = document.getElementById('drillTitle');
+            const body = document.getElementById('drillBody');
+            const breadcrumb = document.getElementById('drillBreadcrumb');
+            
+            breadcrumb.innerHTML = '<span onclick="closeDrillModal()">Dashboard</span> <i class="fas fa-chevron-right text-xs"></i> <span>Outliers</span> <i class="fas fa-chevron-right text-xs"></i> <span class="active">Claim Details</span>';
+            title.textContent = 'Claim Details';
+            
+            let content = '<div class="grid grid-cols-2 gap-4">';
+            Object.entries(row).forEach(([key, value]) => {
+                content += `<div class="bg-gray-50 p-3 rounded-lg"><p class="text-xs text-gray-500 uppercase">${key}</p><p class="font-medium mt-1">${value || '-'}</p></div>`;
+            });
+            content += '</div>';
+            
+            body.innerHTML = content;
+            modal.classList.add('show');
+        }
+
+        function exportReport() {
+            const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
+            const totalClaimed = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
+            const totalSI = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'sumInsured'), 0);
+            const payoutRatio = totalClaimed > 0 ? (totalPaid / totalClaimed * 100) : 0;
+            
+            const report = `
+CLAIMS ANALYTICS REPORT
+Generated: ${new Date().toLocaleString()}
+=====================================
+
+KEY METRICS
+-----------
+Total Claims: ${filteredData.length}
+Total Paid Amount: ${formatCurrency(totalPaid)}
+Total Sum Insured: ${formatCurrency(totalSI)}
+Payout Ratio: ${payoutRatio.toFixed(2)}%
+
+Status: ${payoutRatio <= 70 ? 'HEALTHY' : payoutRatio <= 85 ? 'WARNING' : 'CRITICAL'}
+
+This report was generated from the Claims Analytics Dashboard.
+            `;
+            
+            const blob = new Blob([report], { type: 'text/plain' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'claims_report_' + new Date().toISOString().split('T')[0] + '.txt';
+            a.click();
+        }
+
+        function loadSampleData() {
+            showLoading(true);
+            
+            const diseases = ['Cardiac Surgery', 'Orthopedic', 'Oncology', 'Maternity', 'General Surgery', 'Neurology', 'Gastroenterology', 'Pulmonology', 'Nephrology', 'ENT'];
+            const cities = ['Mumbai', 'Delhi', 'Bangalore', 'Chennai', 'Hyderabad', 'Pune', 'Kolkata', 'Ahmedabad'];
+            const hospitals = ['Apollo Hospital', 'Fortis Healthcare', 'Max Hospital', 'Manipal Hospital', 'Narayana Health', 'AIIMS', 'Medanta', 'Kokilaben', 'Lilavati', 'Hinduja'];
+            const claimTypes = ['Cashless', 'Reimbursement'];
+            const categories = ['Settled', 'Settled', 'Settled', 'Settled', 'In Process', 'In Process', 'Rejected'];
+            const names = ['Rahul Sharma', 'Priya Patel', 'Amit Kumar', 'Sneha Gupta', 'Vikram Singh', 'Anjali Mehta', 'Rajesh Verma', 'Pooja Reddy', 'Sanjay Joshi', 'Meera Nair', 'Karan Malhotra', 'Divya Krishnan', 'Arjun Rao', 'Neha Saxena', 'Rohit Kapoor'];
+
+            rawData = [];
+            
+            for (let i = 0; i < 300; i++) {
+                const claimedAmount = Math.floor(Math.random() * 400000) + 10000;
+                const category = categories[Math.floor(Math.random() * categories.length)];
+                const paidAmount = category === 'In Process' ? 0 : claimedAmount * (0.75 + Math.random() * 0.2);
+                const siOptions = [300000, 500000, 1000000, 1500000, 2000000];
+                const si = siOptions[Math.floor(Math.random() * siOptions.length)];
+                
+                rawData.push({
+                    'Employee Code': `EMP${String(Math.floor(Math.random() * 1000) + 1).padStart(4, '0')}`,
+                    'Employee Name': names[Math.floor(Math.random() * names.length)],
+                    'Claims': claimTypes[Math.floor(Math.random() * claimTypes.length)],
+                    'Category': category,
+                    'Disease': diseases[Math.floor(Math.random() * diseases.length)],
+                    'Hospital': hospitals[Math.floor(Math.random() * hospitals.length)],
+                    'City': cities[Math.floor(Math.random() * cities.length)],
+                    'Claimed Amount': claimedAmount,
+                    'Paid Amount': Math.floor(paidAmount),
+                    'SI': si
+                });
+            }
+
+            // Add outliers
+            for (let i = 0; i < 12; i++) {
+                rawData.push({
+                    'Employee Code': `EMP${String(Math.floor(Math.random() * 100) + 9000).padStart(4, '0')}`,
+                    'Employee Name': names[Math.floor(Math.random() * names.length)],
+                    'Claims': claimTypes[Math.floor(Math.random() * claimTypes.length)],
+                    'Category': ['Settled', 'Settled', 'In Process'][Math.floor(Math.random() * 3)],
+                    'Disease': ['Cardiac Surgery', 'Oncology', 'Neurology'][Math.floor(Math.random() * 3)],
+                    'Hospital': hospitals[Math.floor(Math.random() * hospitals.length)],
+                    'City': cities[Math.floor(Math.random() * cities.length)],
+                    'Claimed Amount': Math.floor(Math.random() * 1200000) + 800000,
+                    'Paid Amount': Math.floor(Math.random() * 1000000) + 600000,
+                    'SI': 2000000
+                });
+            }
+
+            columnMapping = {
+                employeeCode: 'Employee Code',
+                employeeName: 'Employee Name',
+                claimType: 'Claims',
+                category: 'Category',
+                disease: 'Disease',
+                hospital: 'Hospital',
+                city: 'City',
+                claimedAmount: 'Claimed Amount',
+                paidAmount: 'Paid Amount',
+                sumInsured: 'SI'
+            };
+
+            setTimeout(() => {
+                initializeDashboard();
+                showLoading(false);
+            }, 500);
+        }
+
+        // Premium Ratio calculation: (Total Paid + Outstanding) / Premium
+        function updatePremiumRatio() {
+            const premiumInput = document.getElementById('premiumInput');
+            const premium = parseFloat(premiumInput.value) || 0;
+            const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
+            
+            // Calculate outstanding amount (same logic as in updateKPIs)
+            const inProcessClaims = filteredData.filter(r => isInProcess(r));
+            const outstandingAmount = inProcessClaims.reduce((sum, r) => {
+                const claimed = getNumericValue(r, 'claimedAmount');
+                const paid = getNumericValue(r, 'paidAmount');
+                return sum + Math.max(claimed - paid, 0);
+            }, 0);
+            
+            const totalLiability = totalPaid + outstandingAmount;
+            
+            if (premium > 0) {
+                const premiumRatio = (totalLiability / premium * 100);
+                
+                // Update KPI display
+                document.getElementById('kpiPremiumRatio').textContent = premiumRatio.toFixed(1) + '%';
+                document.getElementById('premiumRatioBar').style.width = `${Math.min(premiumRatio, 100)}%`;
+                document.getElementById('premiumRatioBar').className = `h-2 rounded-full transition-all duration-500 ${
+                    premiumRatio <= 70 ? 'bg-green-500' : premiumRatio <= 85 ? 'bg-amber-500' : 'bg-red-500'
+                }`;
+                
+                // Update trend indicator - Health status for premium ratio
+                document.getElementById('kpiPremiumTrend').innerHTML = premiumRatio <= 70 
+                    ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Profitable</span>'
+                    : premiumRatio <= 85 
+                        ? '<span class="text-amber-600"><i class="fas fa-exclamation-circle"></i> Marginal</span>'
+                        : premiumRatio <= 100
+                            ? '<span class="text-red-600"><i class="fas fa-times-circle"></i> Loss Risk</span>'
+                            : '<span class="text-red-600"><i class="fas fa-skull-crossbones"></i> Loss Making</span>';
+                
+                document.getElementById('kpiPremiumAmount').textContent = `Premium: ${formatCurrency(premium)}`;
+                
+                // Highlight the card
+                document.getElementById('premiumKpiCard').classList.add('active');
+                setTimeout(() => {
+                    document.getElementById('premiumKpiCard').classList.remove('active');
+                }, 500);
+            } else {
+                document.getElementById('kpiPremiumRatio').textContent = '--%';
+                document.getElementById('premiumRatioBar').style.width = '0%';
+                document.getElementById('kpiPremiumTrend').innerHTML = '<span class="text-gray-400">Enter premium</span>';
+                document.getElementById('kpiPremiumAmount').textContent = 'Premium: Not set';
+            }
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeDrillModal();
+                closeShareModal();
+            }
+            if (e.ctrlKey && e.key === 'r') {
+                e.preventDefault();
+                resetFilters();
+            }
+        });
+
+        // ============ VIEW-ONLY & SHARING FUNCTIONALITY WITH JSONBIN.IO ============
+        
+        // JSONBin.io Configuration (Free tier - 10,000 requests/month)
+        const JSONBIN_API_KEY = '$2a$10$UBVOOvQrNZ4UFEp7hXgc8.jAu2cXuFsXC25ygmI5cdD44jeyI/B.S';
+        const JSONBIN_BASE_URL = 'https://api.jsonbin.io/v3';
+        
+        // Using JSONBlob.com (No API key required!) - More reliable
+        const USE_JSONBLOB = true; // Set to true to use JSONBlob instead (no signup needed)
+        const JSONBLOB_BASE_URL = 'https://jsonblob.com/api/jsonBlob';
+        
+        let isViewOnlyMode = false;
+
+        // Load shared data from JSONBin.io
+        async function loadSharedDataFromJSONBin(binId) {
+            showLoading(true);
+            document.getElementById('loadingOverlay').querySelector('p').textContent = 'Loading shared dashboard...';
+            
+            try {
+                console.log('Loading from JSONBin, ID:', binId);
+                
+                const response = await fetch(`https://api.jsonbin.io/v3/b/${binId}`, {
+                    method: 'GET',
+                    headers: {
+                        'X-Master-Key': JSONBIN_API_KEY
+                    }
+                });
+                
+                if (!response.ok) {
+                    throw new Error(`Failed to load: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                const parsed = result.record;
+                
+                if (parsed && parsed.data) {
+                    rawData = parsed.data;
+                    columnMapping = parsed.columnMapping;
+                    
+                    console.log('Loaded', rawData.length, 'records');
+                    
+                    applyViewOnlyMode();
+                    
+                    const uploadSection = document.getElementById('uploadSection');
+                    if (uploadSection) {
+                        uploadSection.style.display = 'none';
+                        uploadSection.remove();
+                    }
+                    
+                    const dashboardContent = document.getElementById('dashboardContent');
+                    if (dashboardContent) {
+                        dashboardContent.classList.remove('hidden');
+                        dashboardContent.style.display = 'block';
+                    }
+                    
+                    document.getElementById('lastUpdated').textContent = `Shared: ${parsed.createdAt || 'View-only'}`;
+                    
+                    populateFilters();
+                    filteredData = [...rawData];
+                    updateDashboard();
+                    
+                    const shareBtn = document.getElementById('shareBtn');
+                    if (shareBtn) shareBtn.style.display = 'none';
+                    
+                } else {
+                    throw new Error('Invalid data format');
+                }
+            } catch (error) {
+                console.error('Load error:', error);
+                alert('Error loading shared dashboard.\n\nThe link may have expired or be invalid.');
+                window.location.href = window.location.pathname;
+            }
+            
+            showLoading(false);
+        }
+
+        // Save data to JSONBin.io
+        async function saveDataToJSONBin() {
+            const dataToSave = {
+                data: rawData,
+                columnMapping: columnMapping,
+                createdAt: new Date().toLocaleString(),
+                recordCount: rawData.length
+            };
+            
+            try {
+                console.log('Saving to JSONBin...');
+                document.getElementById('shareLink').value = 'Uploading...';
+                
+                const response = await fetch('https://api.jsonbin.io/v3/b', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-Master-Key': JSONBIN_API_KEY,
+                        'X-Bin-Private': 'false'
+                    },
+                    body: JSON.stringify(dataToSave)
+                });
+                
+                if (!response.ok) {
+                    const errorData = await response.json();
+                    throw new Error(errorData.message || `Error: ${response.status}`);
+                }
+                
+                const result = await response.json();
+                const binId = result.metadata.id;
+                
+                console.log('Saved with ID:', binId);
+                return binId;
+                
+            } catch (error) {
+                console.error('JSONBin error:', error);
+                throw error;
+            }
+        }
+
+        // Apply view-only restrictions
+        function applyViewOnlyMode() {
+            // Show view-only badge
+            document.getElementById('viewOnlyBadge').classList.remove('hidden');
+            
+            // Hide upload-related buttons
+            const uploadSection = document.getElementById('uploadSection');
+            if (uploadSection) uploadSection.remove();
+            
+            // Hide "New Data" button in slicers
+            const newDataBtn = document.querySelector('button[onclick="showUpload()"]');
+            if (newDataBtn) newDataBtn.classList.add('hidden');
+            
+            // Update title to indicate view mode
+            document.title = 'Claims Dashboard (View Only)';
+        }
+
+        // Open share modal
+        function openShareModal() {
+            document.getElementById('shareModal').classList.add('show');
+            document.getElementById('shareLink').value = '';
+            document.getElementById('copyStatus').classList.add('hidden');
+        }
+
+        // Close share modal
+        function closeShareModal(e) {
+            if (!e || e.target === document.getElementById('shareModal')) {
+                document.getElementById('shareModal').classList.remove('show');
+            }
+        }
+
+        // Generate shareable link using JSONBin.io
+        async function generateShareLink() {
+            try {
+                const generateBtn = document.querySelector('button[onclick="generateShareLink()"]');
+                const originalText = generateBtn.innerHTML;
+                generateBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Uploading...';
+                generateBtn.disabled = true;
+                
+                const binId = await saveDataToJSONBin();
+                const baseUrl = window.location.origin + window.location.pathname;
+                const shareUrl = `${baseUrl}?mode=view&id=${binId}`;
+                
+                document.getElementById('shareLink').value = shareUrl;
+                document.getElementById('copyStatus').classList.add('hidden');
+                
+                generateBtn.innerHTML = '<i class="fas fa-check"></i> Link Ready!';
+                setTimeout(() => {
+                    generateBtn.innerHTML = originalText;
+                    generateBtn.disabled = false;
+                }, 2000);
+                
+            } catch (error) {
+                alert('Error generating share link: ' + error.message + '\n\nPlease try again.');
+                const generateBtn = document.querySelector('button[onclick="generateShareLink()"]');
+                generateBtn.innerHTML = '<i class="fas fa-link"></i> Generate Link';
+                generateBtn.disabled = false;
+            }
+        }
+
+        // Copy share link to clipboard
+        function copyShareLink() {
+            const linkInput = document.getElementById('shareLink');
+            const link = linkInput.value;
+            
+            if (!link || link.includes('Uploading')) {
+                alert('Please wait for the link to be generated');
+                return;
+            }
+            
+            navigator.clipboard.writeText(link).then(() => {
+                document.getElementById('copyStatus').classList.remove('hidden');
+                setTimeout(() => {
+                    document.getElementById('copyStatus').classList.add('hidden');
+                }, 3000);
+            }).catch(err => {
+                // Fallback for older browsers
+                linkInput.select();
+                document.execCommand('copy');
+                document.getElementById('copyStatus').classList.remove('hidden');
+            });
+        }
+
+        // Override initializeDashboard to show Share button
+        const originalInitializeDashboard = initializeDashboard;
+        initializeDashboard = function() {
+            originalInitializeDashboard();
+            
+            // Show share button only if not in view-only mode
+            if (!isViewOnlyMode) {
+                document.getElementById('shareBtn').classList.remove('hidden');
+            }
+        };
+
+        // Initialize on page load - check view mode FIRST before anything else
+        document.addEventListener('DOMContentLoaded', () => {
+            if (window.isViewOnlyFromURL && window.sharedDataId) {
+                isViewOnlyMode = true;
+                
+                // Force hide upload section
+                const uploadSection = document.getElementById('uploadSection');
+                if (uploadSection) {
+                    uploadSection.style.display = 'none';
+                    uploadSection.remove();
+                }
+                
+                // Load data from JSONBin if it's a JSONBin share
+                if (window.isJSONBinShare) {
+                    loadSharedDataFromJSONBin(window.sharedDataId);
+                } else {
+                    // Fallback to localStorage (old format)
+                    loadSharedDataFromLocalStorage(window.sharedDataId);
+                }
+            }
+        });
+        
+        // Fallback: Load from localStorage (for old links)
+        function loadSharedDataFromLocalStorage(dataId) {
+            showLoading(true);
+            
+            try {
+                const savedData = localStorage.getItem(`claims_dashboard_${dataId}`);
+                
+                if (savedData) {
+                    const parsed = JSON.parse(savedData);
+                    rawData = parsed.data;
+                    columnMapping = parsed.columnMapping;
+                    
+                    applyViewOnlyMode();
+                    
+                    const uploadSection = document.getElementById('uploadSection');
+                    if (uploadSection) uploadSection.style.display = 'none';
+                    
+                    const dashboardContent = document.getElementById('dashboardContent');
+                    if (dashboardContent) {
+                        dashboardContent.classList.remove('hidden');
+                        dashboardContent.style.display = 'block';
+                    }
+                    
+                    document.getElementById('lastUpdated').textContent = `Data from: ${parsed.createdAt || 'Shared dashboard'}`;
+                    
+                    populateFilters();
+                    filteredData = [...rawData];
+                    updateDashboard();
+                    
+                    const shareBtn = document.getElementById('shareBtn');
+                    if (shareBtn) shareBtn.style.display = 'none';
+                    
+                } else {
+                    alert('Shared data not found. The link may have expired.');
+                    window.location.href = window.location.pathname;
+                }
+            } catch (error) {
+                alert('Error loading shared data: ' + error.message);
+                window.location.href = window.location.pathname;
+            }
+            
+            showLoading(false);
+        }
+    </script>
+</body>
+</html>
