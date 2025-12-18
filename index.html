@@ -717,6 +717,13 @@
         </div>
     </div>
 
+    <!-- Version Banner -->
+    <div class="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-2 text-sm font-medium">
+        <i class="fas fa-check-circle mr-2"></i>
+        Dashboard v2.3 | Last Updated: <span id="versionDate"></span>
+        <script>document.getElementById('versionDate').textContent = new Date().toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'});</script>
+    </div>
+
     <!-- Header -->
     <header class="bg-gradient-to-r from-indigo-900 via-purple-900 to-indigo-900 text-white py-4 px-6 shadow-xl">
         <div class="max-w-7xl mx-auto flex justify-between items-center">
@@ -951,19 +958,16 @@
                     </span>
                     <div class="visual-header">
                         <h3 class="chart-title"><i class="fas fa-disease text-rose-500 mr-2"></i>Claims by Disease (ICD)</h3>
-                        <div class="visual-actions">
-                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('disease')"><i class="fas fa-expand"></i></div>
-                        </div>
                     </div>
                     <div class="chart-wrapper chart-wrapper-lg">
                         <canvas id="diseaseChart"></canvas>
                     </div>
                 </div>
 
-                <!-- Payout Ratio Gauge -->
+                <!-- Premium Ratio Gauge -->
                 <div class="chart-container p-4 relative" id="gaugeChartContainer">
                     <div class="visual-header">
-                        <h3 class="chart-title"><i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Payout Ratio</h3>
+                        <h3 class="chart-title"><i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Premium Ratio</h3>
                     </div>
                     <div class="gauge-container flex flex-col items-center">
                         <canvas id="gaugeChart" height="160"></canvas>
@@ -995,9 +999,6 @@
                     </span>
                     <div class="visual-header">
                         <h3 class="chart-title"><i class="fas fa-city text-teal-500 mr-2"></i>Claims by City</h3>
-                        <div class="visual-actions">
-                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('city')"><i class="fas fa-expand"></i></div>
-                        </div>
                     </div>
                     <div class="chart-wrapper chart-wrapper-md">
                         <canvas id="cityChart"></canvas>
@@ -1012,9 +1013,6 @@
                     </span>
                     <div class="visual-header">
                         <h3 class="chart-title"><i class="fas fa-hospital text-blue-500 mr-2"></i>Top Hospitals (HSP)</h3>
-                        <div class="visual-actions">
-                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('hospital')"><i class="fas fa-expand"></i></div>
-                        </div>
                     </div>
                     <div class="chart-wrapper chart-wrapper-md">
                         <canvas id="hospitalChart"></canvas>
@@ -1032,9 +1030,6 @@
                     </span>
                     <div class="visual-header">
                         <h3 class="chart-title"><i class="fas fa-chart-pie text-purple-500 mr-2"></i>Claim Status Split</h3>
-                        <div class="visual-actions">
-                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('claimType')"><i class="fas fa-expand"></i></div>
-                        </div>
                     </div>
                     <div class="chart-wrapper chart-wrapper-sm">
                         <canvas id="claimTypeChart"></canvas>
@@ -1045,9 +1040,6 @@
                 <div class="chart-container p-4 relative" id="claimTypeStatusContainer">
                     <div class="visual-header">
                         <h3 class="chart-title"><i class="fas fa-table text-blue-500 mr-2"></i>Claim Type vs Status</h3>
-                        <div class="visual-actions">
-                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('claimTypeStatus')"><i class="fas fa-expand"></i></div>
-                        </div>
                     </div>
                     <div class="chart-wrapper chart-wrapper-sm overflow-auto">
                         <div id="claimTypeStatusTable"></div>
@@ -1058,9 +1050,6 @@
                 <div class="chart-container p-4 relative" id="distributionChartContainer">
                     <div class="visual-header">
                         <h3 class="chart-title"><i class="fas fa-chart-bar text-green-500 mr-2"></i>Amount Distribution</h3>
-                        <div class="visual-actions">
-                            <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('distribution')"><i class="fas fa-expand"></i></div>
-                        </div>
                     </div>
                     <div class="chart-wrapper chart-wrapper-sm">
                         <canvas id="distributionChart"></canvas>
@@ -1072,9 +1061,6 @@
             <div class="chart-container p-4 mb-5">
                 <div class="visual-header">
                     <h3 class="chart-title"><i class="fas fa-th text-indigo-500 mr-2"></i>Payout Ratio Matrix (Disease × City)</h3>
-                    <div class="visual-actions">
-                        <div class="visual-action-btn" title="Focus Mode" onclick="focusChart('matrix')"><i class="fas fa-expand"></i></div>
-                    </div>
                 </div>
                 <div id="matrixContainer" class="overflow-x-auto mt-3"></div>
             </div>
@@ -1594,19 +1580,30 @@
 
         function updateGaugeChart() {
             const ctx = document.getElementById('gaugeChart').getContext('2d');
+            const premium = parseFloat(document.getElementById('premiumInput').value) || 0;
             const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
-            const totalClaimed = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
-            const payoutRatio = totalClaimed > 0 ? (totalPaid / totalClaimed * 100) : 0;
+            
+            // Calculate outstanding amount
+            const inProcessClaims = filteredData.filter(r => isInProcess(r));
+            const outstandingAmount = inProcessClaims.reduce((sum, r) => {
+                const claimed = getNumericValue(r, 'claimedAmount');
+                const paid = getNumericValue(r, 'paidAmount');
+                return sum + Math.max(claimed - paid, 0);
+            }, 0);
+            
+            const totalLiability = totalPaid + outstandingAmount;
+            const premiumRatio = premium > 0 ? (totalLiability / premium * 100) : 0;
+            const hasPremium = premium > 0;
 
             if (charts.gauge) charts.gauge.destroy();
             charts.gauge = new Chart(ctx, {
                 type: 'doughnut',
                 data: {
-                    labels: ['Payout Ratio', 'Remaining'],
+                    labels: ['Premium Ratio', 'Remaining'],
                     datasets: [{
-                        data: [Math.min(payoutRatio, 100), Math.max(100 - payoutRatio, 0)],
+                        data: hasPremium ? [Math.min(premiumRatio, 100), Math.max(100 - premiumRatio, 0)] : [0, 100],
                         backgroundColor: [
-                            payoutRatio <= 70 ? '#10b981' : payoutRatio <= 85 ? '#f59e0b' : '#ef4444',
+                            hasPremium ? (premiumRatio <= 70 ? '#10b981' : premiumRatio <= 85 ? '#f59e0b' : '#ef4444') : '#e5e7eb',
                             '#e5e7eb'
                         ],
                         borderWidth: 0
@@ -1627,13 +1624,25 @@
                     beforeDraw: (chart) => {
                         const { ctx, width, height } = chart;
                         ctx.save();
-                        ctx.font = 'bold 28px Segoe UI';
-                        ctx.fillStyle = payoutRatio <= 70 ? '#10b981' : payoutRatio <= 85 ? '#f59e0b' : '#ef4444';
                         ctx.textAlign = 'center';
-                        ctx.fillText(`${payoutRatio.toFixed(1)}%`, width / 2, height - 30);
-                        ctx.font = '12px Segoe UI';
-                        ctx.fillStyle = '#64748b';
-                        ctx.fillText('Payout Ratio', width / 2, height - 10);
+                        
+                        if (hasPremium) {
+                            // Show Premium Ratio
+                            ctx.font = 'bold 28px Segoe UI';
+                            ctx.fillStyle = premiumRatio <= 70 ? '#10b981' : premiumRatio <= 85 ? '#f59e0b' : '#ef4444';
+                            ctx.fillText(`${premiumRatio.toFixed(1)}%`, width / 2, height - 30);
+                            ctx.font = '12px Segoe UI';
+                            ctx.fillStyle = '#64748b';
+                            ctx.fillText('Premium Ratio', width / 2, height - 10);
+                        } else {
+                            // Show "Enter Premium" message
+                            ctx.font = 'bold 16px Segoe UI';
+                            ctx.fillStyle = '#9ca3af';
+                            ctx.fillText('Enter Premium', width / 2, height - 35);
+                            ctx.font = '11px Segoe UI';
+                            ctx.fillStyle = '#d1d5db';
+                            ctx.fillText('↑ to update gauge', width / 2, height - 15);
+                        }
                         ctx.restore();
                     }
                 }]
@@ -2301,9 +2310,7 @@
             }
         }
 
-        function focusChart(chartId) {
-            alert(`Focus mode for ${chartId} chart - In a full implementation, this would expand the chart to full screen.`);
-        }
+        // Focus mode removed
 
         function showRowDetails(row) {
             const modal = document.getElementById('drillModal');
@@ -2471,6 +2478,9 @@ This report was generated from the Claims Analytics Dashboard.
                 document.getElementById('kpiPremiumTrend').innerHTML = '<span class="text-gray-400">Enter premium</span>';
                 document.getElementById('kpiPremiumAmount').textContent = 'Premium: Not set';
             }
+            
+            // Update the gauge chart to reflect premium ratio
+            updateGaugeChart();
         }
 
         // Keyboard shortcuts
