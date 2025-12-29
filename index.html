@@ -717,10 +717,10 @@
         </div>
     </div>
 
-    <!-- Version Banner -->
-    <div class="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-2 text-sm font-medium">
+    <!-- Version Banner (hidden in view-only mode) -->
+    <div id="versionBanner" class="bg-gradient-to-r from-green-600 to-emerald-600 text-white text-center py-2 text-sm font-medium">
         <i class="fas fa-check-circle mr-2"></i>
-        Dashboard v2.3 | Last Updated: <span id="versionDate"></span>
+        Dashboard v2.4 | Last Updated: <span id="versionDate"></span>
         <script>document.getElementById('versionDate').textContent = new Date().toLocaleString('en-US', {month: 'short', day: 'numeric', year: 'numeric', hour: '2-digit', minute: '2-digit'});</script>
     </div>
 
@@ -759,6 +759,25 @@
                 <p class="text-gray-500 mb-4">Drag & drop your Excel file here, or click to browse</p>
                 <p class="text-sm text-gray-400">Supported: .xlsx, .xls, .csv</p>
                 <input type="file" id="fileInput" accept=".xlsx,.xls,.csv" class="hidden">
+            </div>
+            
+            <!-- Premium Input Section -->
+            <div class="mt-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-200 max-w-md mx-auto">
+                <div class="flex items-center gap-3 justify-center">
+                    <div class="bg-green-100 p-3 rounded-full">
+                        <i class="fas fa-rupee-sign text-green-600 text-xl"></i>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-semibold text-green-800">Enter Premium Amount</label>
+                        <p class="text-xs text-green-600">Required for Premium Ratio calculation</p>
+                    </div>
+                </div>
+                <div class="mt-4">
+                    <input type="number" id="premiumInput" placeholder="e.g., 5000000" 
+                           class="w-full border-2 border-green-300 rounded-lg px-4 py-3 text-center text-lg font-semibold focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                           onchange="updatePremiumRatio()" onkeyup="updatePremiumRatio()">
+                    <p class="text-xs text-gray-500 text-center mt-2">This will be used to calculate your Premium Ratio in the dashboard</p>
+                </div>
             </div>
             
             <div class="text-center mt-4">
@@ -826,58 +845,15 @@
                         <i class="fas fa-undo text-sm"></i> Reset
                     </button>
                     
-                    <div class="flex items-center gap-2 ml-4 bg-gradient-to-r from-green-50 to-emerald-50 px-4 py-2 rounded-lg border border-green-200">
-                        <i class="fas fa-rupee-sign text-green-600"></i>
-                        <label class="text-sm font-medium text-green-700">Premium:</label>
-                        <input type="number" id="premiumInput" placeholder="Enter Premium" 
-                               class="border border-green-300 rounded-lg px-3 py-1 w-36 focus:ring-2 focus:ring-green-500 focus:border-green-500 text-sm"
-                               onchange="updatePremiumRatio()" onkeyup="updatePremiumRatio()">
-                    </div>
-                    
                     <button onclick="showUpload()" class="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-lg transition ml-auto flex items-center gap-2">
                         <i class="fas fa-upload"></i> New Data
                     </button>
                 </div>
             </div>
 
-            <!-- KPI Cards Row - 7 KPIs -->
-            <div class="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-5">
-                <!-- KPI 1: Payout Ratio (Paid/Claimed) -->
-                <div class="kpi-card rounded-lg p-3 border-l-indigo-600" onclick="drillKPI('payoutRatio')">
-                    <div class="flex items-start">
-                        <div class="flex-1 min-w-0 pr-2">
-                            <p class="kpi-title truncate">PAYOUT RATIO</p>
-                            <p id="kpiPayoutRatio" class="kpi-value mt-1">--%</p>
-                            <p id="kpiPayoutTrend" class="kpi-subtitle mt-1"></p>
-                        </div>
-                        <div class="bg-indigo-100 p-1.5 rounded-lg shrink-0">
-                            <i class="fas fa-percentage text-indigo-600 text-xs"></i>
-                        </div>
-                    </div>
-                    <div class="mt-2 bg-gray-200 rounded-full h-1.5">
-                        <div id="payoutRatioBar" class="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                </div>
-
-                <!-- KPI 2: Premium Payout Ratio -->
-                <div class="kpi-card rounded-lg p-3 border-l-green-600" id="premiumKpiCard">
-                    <div class="flex items-start">
-                        <div class="flex-1 min-w-0 pr-2">
-                            <p class="kpi-title truncate">PREMIUM RATIO</p>
-                            <p id="kpiPremiumRatio" class="kpi-value mt-1">--%</p>
-                            <p id="kpiPremiumTrend" class="kpi-subtitle mt-1"><span class="text-gray-400">Enter premium</span></p>
-                        </div>
-                        <div class="bg-green-100 p-1.5 rounded-lg shrink-0">
-                            <i class="fas fa-rupee-sign text-green-600 text-xs"></i>
-                        </div>
-                    </div>
-                    <div class="mt-2 bg-gray-200 rounded-full h-1.5">
-                        <div id="premiumRatioBar" class="bg-green-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
-                    </div>
-                    <p id="kpiPremiumAmount" class="kpi-subtitle mt-1 truncate">Premium: Not set</p>
-                </div>
-
-                <!-- KPI 3: Total Claims -->
+            <!-- KPI Cards Row - 6 KPIs -->
+            <div class="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-5">
+                <!-- KPI 1: Total Claims Paid -->
                 <div class="kpi-card rounded-lg p-3 border-l-cyan-600" onclick="drillKPI('totalClaims')">
                     <div class="flex items-start">
                         <div class="flex-1 min-w-0 pr-2">
@@ -891,7 +867,7 @@
                     </div>
                 </div>
 
-                <!-- KPI 4: Outstanding Amount -->
+                <!-- KPI 2: Outstanding Amount -->
                 <div class="kpi-card rounded-lg p-3 border-l-orange-500" onclick="drillKPI('outstanding')">
                     <div class="flex items-start">
                         <div class="flex-1 min-w-0 pr-2">
@@ -902,6 +878,41 @@
                         <div class="bg-orange-100 p-1.5 rounded-lg shrink-0">
                             <i class="fas fa-clock text-orange-600 text-xs"></i>
                         </div>
+                    </div>
+                </div>
+
+                <!-- KPI 3: Claim Ratio (formerly Premium Ratio) -->
+                <div class="kpi-card rounded-lg p-3 border-l-green-600" id="premiumKpiCard">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">CLAIM RATIO</p>
+                            <p id="kpiPremiumRatio" class="kpi-value mt-1">--%</p>
+                            <p id="kpiPremiumTrend" class="kpi-subtitle mt-1"><span class="text-gray-400">Enter premium</span></p>
+                        </div>
+                        <div class="bg-green-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-rupee-sign text-green-600 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 bg-gray-200 rounded-full h-1.5">
+                        <div id="premiumRatioBar" class="bg-green-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
+                    </div>
+                    <p id="kpiPremiumAmount" class="kpi-subtitle mt-1 truncate">Premium: Not set</p>
+                </div>
+
+                <!-- KPI 4: Payout Ratio (Paid/Claimed) -->
+                <div class="kpi-card rounded-lg p-3 border-l-indigo-600" onclick="drillKPI('payoutRatio')">
+                    <div class="flex items-start">
+                        <div class="flex-1 min-w-0 pr-2">
+                            <p class="kpi-title truncate">PAYOUT RATIO</p>
+                            <p id="kpiPayoutRatio" class="kpi-value mt-1">--%</p>
+                            <p id="kpiPayoutTrend" class="kpi-subtitle mt-1"></p>
+                        </div>
+                        <div class="bg-indigo-100 p-1.5 rounded-lg shrink-0">
+                            <i class="fas fa-percentage text-indigo-600 text-xs"></i>
+                        </div>
+                    </div>
+                    <div class="mt-2 bg-gray-200 rounded-full h-1.5">
+                        <div id="payoutRatioBar" class="bg-indigo-600 h-1.5 rounded-full transition-all duration-500" style="width: 0%"></div>
                     </div>
                 </div>
 
@@ -919,21 +930,7 @@
                     </div>
                 </div>
 
-                <!-- KPI 6: Sum Insured Utilization -->
-                <div class="kpi-card rounded-lg p-3 border-l-rose-600" onclick="drillKPI('siUtilization')">
-                    <div class="flex items-start">
-                        <div class="flex-1 min-w-0 pr-2">
-                            <p class="kpi-title truncate">SI UTILIZED</p>
-                            <p id="kpiSumInsured" class="kpi-value mt-1">₹0</p>
-                            <p id="kpiUtilization" class="kpi-subtitle mt-1"></p>
-                        </div>
-                        <div class="bg-rose-100 p-1.5 rounded-lg shrink-0">
-                            <i class="fas fa-shield-alt text-rose-600 text-xs"></i>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- KPI 7: High Value Claims -->
+                <!-- KPI 6: High Value Claims -->
                 <div class="kpi-card rounded-lg p-3 border-l-purple-600" onclick="drillKPI('highValue')">
                     <div class="flex items-start">
                         <div class="flex-1 min-w-0 pr-2">
@@ -948,79 +945,7 @@
                 </div>
             </div>
 
-            <!-- Charts Row 1 -->
-            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
-                <!-- Disease Chart (Large) -->
-                <div class="chart-container p-4 lg:col-span-2 relative" id="diseaseChartContainer">
-                    <span class="cross-filter-indicator" id="diseaseFilterIndicator">
-                        <i class="fas fa-filter"></i> Filtered
-                        <button onclick="clearChartFilter('disease')" class="ml-1 hover:text-red-300">&times;</button>
-                    </span>
-                    <div class="visual-header">
-                        <h3 class="chart-title"><i class="fas fa-disease text-rose-500 mr-2"></i>Claims by Disease (ICD)</h3>
-                    </div>
-                    <div class="chart-wrapper chart-wrapper-lg">
-                        <canvas id="diseaseChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Premium Ratio Gauge -->
-                <div class="chart-container p-4 relative" id="gaugeChartContainer">
-                    <div class="visual-header">
-                        <h3 class="chart-title"><i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Premium Ratio</h3>
-                    </div>
-                    <div class="gauge-container flex flex-col items-center">
-                        <canvas id="gaugeChart" height="160"></canvas>
-                        <div class="mt-3 grid grid-cols-3 gap-2 text-center w-full">
-                            <div class="bg-green-50 rounded p-1.5">
-                                <p class="text-[10px] text-gray-500">Target</p>
-                                <p class="font-semibold text-green-600 text-xs">≤70%</p>
-                            </div>
-                            <div class="bg-amber-50 rounded p-1.5">
-                                <p class="text-[10px] text-gray-500">Warning</p>
-                                <p class="font-semibold text-amber-600 text-xs">70-85%</p>
-                            </div>
-                            <div class="bg-red-50 rounded p-1.5">
-                                <p class="text-[10px] text-gray-500">Critical</p>
-                                <p class="font-semibold text-red-600 text-xs">&gt;85%</p>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Row 2 -->
-            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
-                <!-- City-wise Distribution -->
-                <div class="chart-container p-4 relative" id="cityChartContainer">
-                    <span class="cross-filter-indicator" id="cityFilterIndicator">
-                        <i class="fas fa-filter"></i> Filtered
-                        <button onclick="clearChartFilter('city')" class="ml-1 hover:text-red-300">&times;</button>
-                    </span>
-                    <div class="visual-header">
-                        <h3 class="chart-title"><i class="fas fa-city text-teal-500 mr-2"></i>Claims by City</h3>
-                    </div>
-                    <div class="chart-wrapper chart-wrapper-md">
-                        <canvas id="cityChart"></canvas>
-                    </div>
-                </div>
-
-                <!-- Hospital Distribution -->
-                <div class="chart-container p-4 relative" id="hospitalChartContainer">
-                    <span class="cross-filter-indicator" id="hospitalFilterIndicator">
-                        <i class="fas fa-filter"></i> Filtered
-                        <button onclick="clearChartFilter('hospital')" class="ml-1 hover:text-red-300">&times;</button>
-                    </span>
-                    <div class="visual-header">
-                        <h3 class="chart-title"><i class="fas fa-hospital text-blue-500 mr-2"></i>Top Hospitals (HSP)</h3>
-                    </div>
-                    <div class="chart-wrapper chart-wrapper-md">
-                        <canvas id="hospitalChart"></canvas>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Charts Row 3 -->
+            <!-- Charts Row 1: Claim Status, Type vs Status, Amount Distribution -->
             <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
                 <!-- Claim Status Distribution -->
                 <div class="chart-container p-4 relative" id="claimTypeChartContainer">
@@ -1057,20 +982,95 @@
                 </div>
             </div>
 
+            <!-- Smart Insights Panel -->
+            <div class="chart-container p-4 mb-5">
+                <div class="visual-header">
+                    <h3 class="chart-title"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Smart Insights</h3>
+                </div>
+                <div id="insightsPanel" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
+            </div>
+
+            <!-- Charts Row 2: Disease Chart & Gauge -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-5">
+                <!-- Disease Chart (Large) -->
+                <div class="chart-container p-4 lg:col-span-2 relative" id="diseaseChartContainer">
+                    <span class="cross-filter-indicator" id="diseaseFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('disease')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-disease text-rose-500 mr-2"></i>Claims by Disease (ICD)</h3>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-lg">
+                        <canvas id="diseaseChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Claim Ratio Gauge -->
+                <div class="chart-container p-4 relative" id="gaugeChartContainer">
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Claim Ratio</h3>
+                    </div>
+                    <div class="gauge-container flex flex-col items-center">
+                        <canvas id="gaugeChart" height="160"></canvas>
+                        <div id="gaugeMessage" class="text-center mt-2 p-2 rounded-lg bg-gray-50">
+                            <p class="text-xs text-gray-500">Enter premium to see gauge</p>
+                        </div>
+                        <div class="mt-3 grid grid-cols-3 gap-2 text-center w-full">
+                            <div class="bg-green-50 rounded p-1.5">
+                                <p class="text-[10px] text-gray-500">Healthy</p>
+                                <p class="font-semibold text-green-600 text-xs">≤70%</p>
+                            </div>
+                            <div class="bg-amber-50 rounded p-1.5">
+                                <p class="text-[10px] text-gray-500">Caution</p>
+                                <p class="font-semibold text-amber-600 text-xs">70-85%</p>
+                            </div>
+                            <div class="bg-red-50 rounded p-1.5">
+                                <p class="text-[10px] text-gray-500">Critical</p>
+                                <p class="font-semibold text-red-600 text-xs">&gt;85%</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Charts Row 3: City & Hospital -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+                <!-- City-wise Distribution -->
+                <div class="chart-container p-4 relative" id="cityChartContainer">
+                    <span class="cross-filter-indicator" id="cityFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('city')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-city text-teal-500 mr-2"></i>Claims by City</h3>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-md">
+                        <canvas id="cityChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- Hospital Distribution -->
+                <div class="chart-container p-4 relative" id="hospitalChartContainer">
+                    <span class="cross-filter-indicator" id="hospitalFilterIndicator">
+                        <i class="fas fa-filter"></i> Filtered
+                        <button onclick="clearChartFilter('hospital')" class="ml-1 hover:text-red-300">&times;</button>
+                    </span>
+                    <div class="visual-header">
+                        <h3 class="chart-title"><i class="fas fa-hospital text-blue-500 mr-2"></i>Top Hospitals (HSP)</h3>
+                    </div>
+                    <div class="chart-wrapper chart-wrapper-md">
+                        <canvas id="hospitalChart"></canvas>
+                    </div>
+                </div>
+            </div>
+
             <!-- Payout Matrix -->
             <div class="chart-container p-4 mb-5">
                 <div class="visual-header">
                     <h3 class="chart-title"><i class="fas fa-th text-indigo-500 mr-2"></i>Payout Ratio Matrix (Disease × City)</h3>
                 </div>
                 <div id="matrixContainer" class="overflow-x-auto mt-3"></div>
-            </div>
-
-            <!-- Insights Panel -->
-            <div class="chart-container p-4">
-                <div class="visual-header">
-                    <h3 class="chart-title"><i class="fas fa-lightbulb text-yellow-500 mr-2"></i>Smart Insights</h3>
-                </div>
-                <div id="insightsPanel" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 mt-3"></div>
             </div>
         </div>
     </main>
@@ -1395,7 +1395,6 @@
         function updateKPIs() {
             const totalClaimed = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
             const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
-            const totalSI = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'sumInsured'), 0);
             
             const payoutRatio = totalClaimed > 0 ? (totalPaid / totalClaimed * 100) : 0;
             
@@ -1409,7 +1408,6 @@
             // In-Process Claims calculation
             const inProcessClaims = filteredData.filter(r => isInProcess(r));
             const inProcessCount = inProcessClaims.length;
-            const inProcessAmount = inProcessClaims.reduce((sum, r) => sum + getNumericValue(r, 'claimedAmount'), 0);
             
             // Outstanding Amount calculation (Claimed - Paid for in-process claims)
             const outstandingAmount = inProcessClaims.reduce((sum, r) => {
@@ -1420,25 +1418,28 @@
 
             // Animate KPI updates
             animateValue('kpiPayoutRatio', payoutRatio, '%', 1);
-            document.getElementById('payoutRatioBar').style.width = `${Math.min(payoutRatio, 100)}%`;
-            document.getElementById('payoutRatioBar').className = `h-2 rounded-full transition-all duration-500 ${
-                payoutRatio >= 85 ? 'bg-green-500' : payoutRatio >= 70 ? 'bg-green-500' : 'bg-amber-500'
-            }`;
-            document.getElementById('kpiPayoutTrend').innerHTML = payoutRatio >= 85 
-                ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Excellent</span>'
-                : payoutRatio >= 70 
-                    ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Good</span>'
-                    : '<span class="text-amber-600"><i class="fas fa-exclamation-circle"></i> Review</span>';
+            const payoutBar = document.getElementById('payoutRatioBar');
+            if(payoutBar) {
+                payoutBar.style.width = `${Math.min(payoutRatio, 100)}%`;
+                payoutBar.className = `h-2 rounded-full transition-all duration-500 ${
+                    payoutRatio >= 85 ? 'bg-green-500' : payoutRatio >= 70 ? 'bg-green-500' : 'bg-amber-500'
+                }`;
+            }
+            
+            const kpiPayoutTrend = document.getElementById('kpiPayoutTrend');
+            if(kpiPayoutTrend) {
+                kpiPayoutTrend.innerHTML = payoutRatio >= 85 
+                    ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Excellent</span>'
+                    : payoutRatio >= 70 
+                        ? '<span class="text-green-600"><i class="fas fa-check-circle"></i> Good</span>'
+                        : '<span class="text-amber-600"><i class="fas fa-exclamation-circle"></i> Review</span>';
+            }
 
             document.getElementById('kpiTotalClaims').textContent = formatCurrency(totalPaid);
             document.getElementById('kpiClaimsCount').textContent = `${filteredData.length.toLocaleString()} claims`;
 
             document.getElementById('kpiAvgClaim').textContent = formatCurrency(avgClaim);
             document.getElementById('kpiMedianClaim').textContent = `Median: ${formatCurrency(medianClaim)}`;
-
-            document.getElementById('kpiSumInsured').textContent = formatCurrency(totalSI);
-            const utilization = totalSI > 0 ? (totalPaid / totalSI * 100) : 0;
-            document.getElementById('kpiUtilization').innerHTML = `<span class="${utilization > 50 ? 'text-amber-600' : 'text-green-600'}">${utilization.toFixed(1)}% utilized</span>`;
 
             document.getElementById('kpiHighValue').textContent = highValueClaims.toLocaleString();
             document.getElementById('kpiHighValuePct').textContent = `${((highValueClaims / Math.max(filteredData.length, 1)) * 100).toFixed(1)}% of total`;
@@ -1594,6 +1595,22 @@
             const totalLiability = totalPaid + outstandingAmount;
             const premiumRatio = premium > 0 ? (totalLiability / premium * 100) : 0;
             const hasPremium = premium > 0;
+            
+            // Update Gauge Message
+            const gaugeMessage = document.getElementById('gaugeMessage');
+            if (hasPremium) {
+                let msg = "";
+                if (premiumRatio <= 70) {
+                    msg = `<p class="font-bold text-green-600">Healthy (${premiumRatio.toFixed(1)}%)</p><p class="text-[10px] text-gray-500">Your policy is healthy! Continue wellness programs to maintain this.</p>`;
+                } else if (premiumRatio <= 85) {
+                    msg = `<p class="font-bold text-amber-600">Caution (${premiumRatio.toFixed(1)}%)</p><p class="text-[10px] text-gray-500">Policy needs attention. Consider wellness initiatives to reduce claims.</p>`;
+                } else {
+                    msg = `<p class="font-bold text-red-600">Critical (${premiumRatio.toFixed(1)}%)</p><p class="text-[10px] text-gray-500">High claim ratio! Implement wellness programs urgently.</p>`;
+                }
+                gaugeMessage.innerHTML = msg;
+            } else {
+                gaugeMessage.innerHTML = `<p class="text-xs text-gray-500">Enter premium to see gauge</p>`;
+            }
 
             if (charts.gauge) charts.gauge.destroy();
             charts.gauge = new Chart(ctx, {
@@ -2137,8 +2154,26 @@
         function generateInsights() {
             const insights = [];
             const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
-            const totalSI = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'sumInsured'), 0);
-            const payoutRatio = totalSI > 0 ? (totalPaid / totalSI * 100) : 0;
+            
+            // Calculate Claim Ratio instead of SI utilization
+            // Claim Ratio = (Paid + Outstanding) / Premium
+            const premiumInput = document.getElementById('premiumInput');
+            const premium = parseFloat(premiumInput ? premiumInput.value : 0) || 0;
+            
+            const inProcessClaims = filteredData.filter(r => isInProcess(r));
+            const outstandingAmount = inProcessClaims.reduce((sum, r) => {
+                const claimed = getNumericValue(r, 'claimedAmount');
+                const paid = getNumericValue(r, 'paidAmount');
+                return sum + Math.max(claimed - paid, 0);
+            }, 0);
+            
+            let claimRatio = 0;
+            let hasPremium = false;
+            
+            if (premium > 0) {
+                claimRatio = (totalPaid + outstandingAmount) / premium * 100;
+                hasPremium = true;
+            }
             
             // Disease analysis
             const diseaseGroup = {};
@@ -2170,31 +2205,40 @@
             const frequentClaimants = Object.entries(empCount).filter(e => e[1] > 3).length;
 
             // Generate insights
-            if (payoutRatio > 85) {
-                insights.push({
-                    icon: 'fas fa-exclamation-triangle',
-                    color: 'red',
-                    title: 'Critical Payout Ratio',
-                    text: `At ${payoutRatio.toFixed(1)}%, the payout ratio is critically high. Immediate review of claims and premium structure recommended.`
-                });
-            } else if (payoutRatio > 70) {
-                insights.push({
-                    icon: 'fas fa-exclamation-circle',
-                    color: 'amber',
-                    title: 'Elevated Payout Ratio',
-                    text: `Payout ratio of ${payoutRatio.toFixed(1)}% is above target. Monitor closely and consider preventive measures.`
-                });
+            if (hasPremium) {
+                if (claimRatio > 85) {
+                    insights.push({
+                        icon: 'fas fa-exclamation-triangle',
+                        color: 'red',
+                        title: 'High Claim Ratio',
+                        text: `At ${claimRatio.toFixed(1)}%, claims exceed 85% of premium. Immediate review required.`
+                    });
+                } else if (claimRatio > 70) {
+                    insights.push({
+                        icon: 'fas fa-exclamation-circle',
+                        color: 'amber',
+                        title: 'Elevated Claim Ratio',
+                        text: `Claim ratio of ${claimRatio.toFixed(1)}% is getting high. Monitor closely.`
+                    });
+                } else {
+                    insights.push({
+                        icon: 'fas fa-check-circle',
+                        color: 'green',
+                        title: 'Healthy Claim Ratio',
+                        text: `Claim ratio of ${claimRatio.toFixed(1)}% is within healthy limits.`
+                    });
+                }
             } else {
-                insights.push({
-                    icon: 'fas fa-check-circle',
-                    color: 'green',
-                    title: 'Healthy Payout Ratio',
-                    text: `Payout ratio of ${payoutRatio.toFixed(1)}% is within healthy limits. Premium pricing is sustainable.`
+                 insights.push({
+                    icon: 'fas fa-info-circle',
+                    color: 'blue',
+                    title: 'Enter Premium',
+                    text: `Enter premium amount to see Claim Ratio analysis.`
                 });
             }
 
             if (topDisease) {
-                const pct = ((topDisease[1]/totalPaid)*100).toFixed(1);
+                const pct = totalPaid > 0 ? ((topDisease[1]/totalPaid)*100).toFixed(1) : 0;
                 insights.push({
                     icon: 'fas fa-disease',
                     color: 'purple',
@@ -2262,19 +2306,19 @@
             
             switch(kpiType) {
                 case 'payoutRatio':
-                    title.textContent = 'Payout Ratio Analysis';
+                    title.textContent = 'Payout Ratio Analysis (Paid vs Claimed)';
                     const prByDisease = {};
                     filteredData.forEach(r => {
                         const d = getValue(r, 'disease') || 'Unknown';
-                        if (!prByDisease[d]) prByDisease[d] = { paid: 0, si: 0 };
+                        if (!prByDisease[d]) prByDisease[d] = { paid: 0, claimed: 0 };
                         prByDisease[d].paid += getNumericValue(r, 'paidAmount');
-                        prByDisease[d].si += getNumericValue(r, 'sumInsured');
+                        prByDisease[d].claimed += getNumericValue(r, 'claimedAmount');
                     });
-                    content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Disease</th><th class="text-right p-2 bg-gray-100">Paid</th><th class="text-right p-2 bg-gray-100">SI</th><th class="text-right p-2 bg-gray-100">Payout %</th></tr></thead><tbody>`;
-                    Object.entries(prByDisease).sort((a,b) => (b[1].paid/b[1].si) - (a[1].paid/a[1].si)).slice(0,15).forEach(([disease, data]) => {
-                        const ratio = data.si > 0 ? (data.paid / data.si * 100) : 0;
-                        const color = ratio > 85 ? 'text-red-600' : ratio > 70 ? 'text-amber-600' : 'text-green-600';
-                        content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${disease}</td><td class="p-2 text-right">${formatCurrency(data.paid)}</td><td class="p-2 text-right">${formatCurrency(data.si)}</td><td class="p-2 text-right font-bold ${color}">${ratio.toFixed(1)}%</td></tr>`;
+                    content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Disease</th><th class="text-right p-2 bg-gray-100">Paid</th><th class="text-right p-2 bg-gray-100">Claimed</th><th class="text-right p-2 bg-gray-100">Payout %</th></tr></thead><tbody>`;
+                    Object.entries(prByDisease).sort((a,b) => (b[1].paid/b[1].claimed) - (a[1].paid/a[1].claimed)).slice(0,15).forEach(([disease, data]) => {
+                        const ratio = data.claimed > 0 ? (data.paid / data.claimed * 100) : 0;
+                        const color = ratio >= 85 ? 'text-green-600' : ratio >= 70 ? 'text-green-600' : 'text-amber-600';
+                        content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${disease}</td><td class="p-2 text-right">${formatCurrency(data.paid)}</td><td class="p-2 text-right">${formatCurrency(data.claimed)}</td><td class="p-2 text-right font-bold ${color}">${ratio.toFixed(1)}%</td></tr>`;
                     });
                     content += '</tbody></table>';
                     break;
@@ -2291,6 +2335,54 @@
                     content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Type</th><th class="text-right p-2 bg-gray-100">Count</th><th class="text-right p-2 bg-gray-100">Amount</th><th class="text-right p-2 bg-gray-100">Avg</th></tr></thead><tbody>`;
                     Object.entries(claimsByType).sort((a,b) => b[1].paid - a[1].paid).forEach(([type, data]) => {
                         content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${type}</td><td class="p-2 text-right">${data.count}</td><td class="p-2 text-right font-medium">${formatCurrency(data.paid)}</td><td class="p-2 text-right">${formatCurrency(data.paid/data.count)}</td></tr>`;
+                    });
+                    content += '</tbody></table>';
+                    break;
+
+                case 'outstanding':
+                    title.textContent = 'Outstanding Claims (In Process)';
+                    const inProcessClaims = filteredData.filter(r => isInProcess(r)).sort((a,b) => getNumericValue(b, 'claimedAmount') - getNumericValue(a, 'claimedAmount')).slice(0, 20);
+                    content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Employee</th><th class="text-left p-2 bg-gray-100">Hospital</th><th class="text-right p-2 bg-gray-100">Claimed</th><th class="text-right p-2 bg-gray-100">Paid</th><th class="text-right p-2 bg-gray-100">Outstanding</th></tr></thead><tbody>`;
+                    inProcessClaims.forEach(row => {
+                         const claimed = getNumericValue(row, 'claimedAmount');
+                         const paid = getNumericValue(row, 'paidAmount');
+                         const diff = Math.max(claimed - paid, 0);
+                         content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${getValue(row, 'employeeName') || getValue(row, 'employeeCode')}</td><td class="p-2">${getValue(row, 'hospital')}</td><td class="p-2 text-right">${formatCurrency(claimed)}</td><td class="p-2 text-right">${formatCurrency(paid)}</td><td class="p-2 text-right font-bold text-orange-600">${formatCurrency(diff)}</td></tr>`;
+                    });
+                    content += '</tbody></table>';
+                    break;
+
+                case 'avgClaim':
+                    title.textContent = 'Claim Amount Distribution';
+                    // Re-using distribution logic for table view
+                    const buckets = {'0-10K':0, '10-50K':0, '50K-1L':0, '1L-5L':0, '5L+':0};
+                    let totalVal = 0; let countVal = 0;
+                    filteredData.forEach(r => {
+                        const amt = getNumericValue(r, 'paidAmount');
+                        if(amt > 0) {
+                            totalVal += amt; countVal++;
+                            if(amt <= 10000) buckets['0-10K']++;
+                            else if(amt <= 50000) buckets['10-50K']++;
+                            else if(amt <= 100000) buckets['50K-1L']++;
+                            else if(amt <= 500000) buckets['1L-5L']++;
+                            else buckets['5L+']++;
+                        }
+                    });
+                    content = `<div class="mb-4 font-bold text-lg">Overall Average: ${formatCurrency(countVal ? totalVal/countVal : 0)}</div>`;
+                    content += `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Range</th><th class="text-right p-2 bg-gray-100">Count</th><th class="text-right p-2 bg-gray-100">%</th></tr></thead><tbody>`;
+                    Object.entries(buckets).forEach(([range, count]) => {
+                        const pct = countVal ? (count/countVal*100).toFixed(1) : 0;
+                        content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${range}</td><td class="p-2 text-right">${count}</td><td class="p-2 text-right">${pct}%</td></tr>`;
+                    });
+                    content += '</tbody></table>';
+                    break;
+
+                case 'highValue':
+                    title.textContent = 'High Value Claims (>₹1 Lakh)';
+                    const highClaims = filteredData.filter(r => getNumericValue(r, 'paidAmount') > 100000).sort((a,b) => getNumericValue(b, 'paidAmount') - getNumericValue(a, 'paidAmount')).slice(0, 20);
+                    content = `<table class="w-full text-sm"><thead><tr><th class="text-left p-2 bg-gray-100">Employee</th><th class="text-left p-2 bg-gray-100">Disease</th><th class="text-left p-2 bg-gray-100">Hospital</th><th class="text-right p-2 bg-gray-100">Paid</th></tr></thead><tbody>`;
+                    highClaims.forEach(row => {
+                         content += `<tr class="border-b hover:bg-gray-50"><td class="p-2">${getValue(row, 'employeeName') || getValue(row, 'employeeCode')}</td><td class="p-2">${getValue(row, 'disease')}</td><td class="p-2">${getValue(row, 'hospital')}</td><td class="p-2 text-right font-bold text-purple-700">${formatCurrency(getNumericValue(row, 'paidAmount'))}</td></tr>`;
                     });
                     content += '</tbody></table>';
                     break;
@@ -2430,10 +2522,16 @@ This report was generated from the Claims Analytics Dashboard.
             }, 500);
         }
 
+        // Sync premium input and update dashboard
+        function syncPremiumAndUpdate(value) {
+            document.getElementById('premiumInput').value = value;
+            updatePremiumRatio();
+        }
+
         // Premium Ratio calculation: (Total Paid + Outstanding) / Premium
         function updatePremiumRatio() {
             const premiumInput = document.getElementById('premiumInput');
-            const premium = parseFloat(premiumInput.value) || 0;
+            const premium = parseFloat(premiumInput?.value) || 0;
             const totalPaid = filteredData.reduce((sum, r) => sum + getNumericValue(r, 'paidAmount'), 0);
             
             // Calculate outstanding amount (same logic as in updateKPIs)
@@ -2622,6 +2720,10 @@ This report was generated from the Claims Analytics Dashboard.
             // Hide "New Data" button in slicers
             const newDataBtn = document.querySelector('button[onclick="showUpload()"]');
             if (newDataBtn) newDataBtn.classList.add('hidden');
+            
+            // Hide version banner
+            const versionBanner = document.getElementById('versionBanner');
+            if (versionBanner) versionBanner.style.display = 'none';
             
             // Update title to indicate view mode
             document.title = 'Claims Dashboard (View Only)';
