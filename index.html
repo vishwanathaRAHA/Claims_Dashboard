@@ -1598,52 +1598,35 @@
             const premiumRatio = premium > 0 ? (totalLiability / premium * 100) : 0;
             const hasPremium = premium > 0;
             
-            // Update Gauge Message - Beautified
+            // Update Gauge Message - Beautified (No Symbols)
             const gaugeMessage = document.getElementById('gaugeMessage');
             if (hasPremium) {
-                let statusColor, statusTitle, statusIcon, statusDesc, bgClass;
+                let statusTitle, statusDesc, bgClass;
                 
                 if (premiumRatio <= 70) {
-                    statusColor = 'green';
-                    statusIcon = 'fa-shield-alt';
                     statusTitle = 'Healthy Policy';
-                    statusDesc = 'Excellent! Your policy is performing well. Continue current wellness programs.';
+                    statusDesc = 'Your policy is healthy. We recommend maintaining current wellness programs.';
                     bgClass = 'bg-green-50 border-green-200 text-green-800';
                 } else if (premiumRatio <= 85) {
-                    statusColor = 'amber';
-                    statusIcon = 'fa-exclamation-circle';
                     statusTitle = 'Caution Needed';
-                    statusDesc = 'Margins are thinning. Review high-cost claims and consider intervention.';
+                    statusDesc = 'Margins are thinning. It is advisable to initiate targeted wellness interventions.';
                     bgClass = 'bg-amber-50 border-amber-200 text-amber-800';
                 } else {
-                    statusColor = 'red';
-                    statusIcon = 'fa-radiation';
                     statusTitle = 'Critical Status';
-                    statusDesc = 'Loss making! Immediate wellness intervention and policy review required.';
+                    statusDesc = 'High claim volume. Immediate implementation of comprehensive wellness programs is strongly recommended.';
                     bgClass = 'bg-red-50 border-red-200 text-red-800';
                 }
                 
                 gaugeMessage.innerHTML = `
-                    <div class="mt-2 p-3 rounded-xl border ${bgClass} shadow-sm relative overflow-hidden text-left">
-                        <div class="absolute top-0 right-0 -mt-2 -mr-2 opacity-10">
-                            <i class="fas ${statusIcon} fa-3x"></i>
-                        </div>
-                        <div class="flex items-start gap-3 relative z-10">
-                            <div class="p-1.5 rounded-full bg-white bg-opacity-60 mt-1">
-                                <i class="fas ${statusIcon} text-lg"></i>
-                            </div>
-                            <div>
-                                <p class="font-bold text-xs uppercase tracking-wide opacity-90">${statusTitle} (${premiumRatio.toFixed(1)}%)</p>
-                                <p class="text-xs font-medium mt-1 leading-relaxed opacity-90">${statusDesc}</p>
-                            </div>
-                        </div>
+                    <div class="mt-2 p-4 rounded-xl border ${bgClass} shadow-sm text-center">
+                        <p class="font-bold text-sm uppercase tracking-wide opacity-90 mb-1">${statusTitle} (${premiumRatio.toFixed(1)}%)</p>
+                        <p class="text-xs font-medium leading-relaxed opacity-90">${statusDesc}</p>
                     </div>
                 `;
             } else {
                 gaugeMessage.innerHTML = `
                     <div class="bg-gray-50 border border-gray-200 rounded-lg p-3 mt-2 text-center">
-                        <i class="fas fa-arrow-up text-gray-400 mb-1"></i>
-                        <p class="text-xs font-medium text-gray-500">Enter Premium Amount above<br>to see Policy Health Status</p>
+                        <p class="text-xs font-medium text-gray-500">Enter Premium Amount above to see Policy Health Status & Wellness Recommendations</p>
                     </div>
                 `;
             }
@@ -1896,13 +1879,14 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     cutout: '60%',
-                    events: [], // Disable interactions entirely
+                    events: [], // Disable hover events
+                    onClick: null, // Explicitly disable click events
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: { padding: 8, font: { size: 10 }, usePointStyle: true }
                         },
-                        tooltip: { enabled: false } // No tooltips as requested/implied by "no interactivity"
+                        tooltip: { enabled: false } 
                     }
                 }
             });
@@ -2692,8 +2676,7 @@ This report was generated from the Claims Analytics Dashboard.
                 }
             } catch (error) {
                 console.error('Load error:', error);
-                alert('Error loading shared dashboard.\n\nThe link may have expired or be invalid.');
-                window.location.href = window.location.pathname;
+                alert('Error loading shared dashboard. Please try again later.');
             }
             
             showLoading(false);
