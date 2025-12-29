@@ -37,6 +37,16 @@
             display: none !important;
         }
         
+        /* View-only mode: Hide header and footer for clean look */
+        .view-only-mode header, 
+        .view-only-mode footer {
+            display: none !important;
+        }
+        
+        .view-only-mode main {
+            padding-top: 20px !important;
+        }
+        
         * {
             font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
             box-sizing: border-box;
@@ -1617,10 +1627,26 @@
                     bgClass = 'bg-red-50 border-red-200 text-red-800';
                 }
                 
+                // Wellness-focused messaging
+                if (premiumRatio <= 70) {
+                    statusTitle = 'Excellent Status';
+                    statusDesc = 'Great job! Keep investing in your wellness programs to maintain this healthy ratio.';
+                    bgClass = 'bg-green-50 border-green-200 text-green-800';
+                } else if (premiumRatio <= 85) {
+                    statusTitle = 'Action Needed';
+                    statusDesc = 'Warning signs detected. Start targeted wellness interventions now to prevent future losses.';
+                    bgClass = 'bg-amber-50 border-amber-200 text-amber-800';
+                } else {
+                    statusTitle = 'Critical Priority';
+                    statusDesc = 'Urgent: Implementing a comprehensive wellness program is essential to reduce these claims.';
+                    bgClass = 'bg-red-50 border-red-200 text-red-800';
+                }
+                
                 gaugeMessage.innerHTML = `
                     <div class="mt-2 p-4 rounded-xl border ${bgClass} shadow-sm text-center">
                         <p class="font-bold text-sm uppercase tracking-wide opacity-90 mb-1">${statusTitle} (${premiumRatio.toFixed(1)}%)</p>
                         <p class="text-xs font-medium leading-relaxed opacity-90">${statusDesc}</p>
+                        <p class="text-[10px] mt-2 font-mono text-gray-500">Premium Base: ${formatCurrency(premium)}</p>
                     </div>
                 `;
             } else {
@@ -1665,10 +1691,15 @@
                         if (hasPremium) {
                             ctx.font = 'bold 28px Segoe UI';
                             ctx.fillStyle = premiumRatio <= 70 ? '#10b981' : premiumRatio <= 85 ? '#f59e0b' : '#ef4444';
-                            ctx.fillText(`${premiumRatio.toFixed(1)}%`, width / 2, height - 30);
+                            ctx.fillText(`${premiumRatio.toFixed(1)}%`, width / 2, height - 35);
                             ctx.font = '12px Segoe UI';
                             ctx.fillStyle = '#64748b';
-                            ctx.fillText('Claim Ratio', width / 2, height - 10);
+                            ctx.fillText('Claim Ratio', width / 2, height - 15);
+                            
+                            // Show premium amount inside gauge
+                            ctx.font = '10px Segoe UI';
+                            ctx.fillStyle = '#94a3b8';
+                            ctx.fillText(`Prem: ${formatCurrency(premium)}`, width / 2, height + 5);
                         } else {
                             ctx.font = 'bold 16px Segoe UI';
                             ctx.fillStyle = '#9ca3af';
