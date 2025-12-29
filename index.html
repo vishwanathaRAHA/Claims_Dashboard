@@ -2626,8 +2626,15 @@ This report was generated from the Claims Analytics Dashboard.
                     }
                 });
                 
+                if (response.status === 401 || response.status === 403) {
+                     console.error('Auth failed', await response.text());
+                     throw new Error('Access denied. The API Key might be invalid.');
+                }
+                if (response.status === 404) {
+                     throw new Error('Link expired or invalid ID.');
+                }
                 if (!response.ok) {
-                    throw new Error(`Failed to load: ${response.status}`);
+                    throw new Error(`Failed to load: ${response.status} ${response.statusText}`);
                 }
                 
                 const result = await response.json();
@@ -2650,7 +2657,9 @@ This report was generated from the Claims Analytics Dashboard.
                     const uploadSection = document.getElementById('uploadSection');
                     if (uploadSection) {
                         uploadSection.style.display = 'none';
-                        uploadSection.remove();
+                        // Do NOT remove, just hide, so we can access premiumInput
+                        uploadSection.style.visibility = 'hidden'; 
+                        uploadSection.style.position = 'absolute';
                     }
                     
                     const dashboardContent = document.getElementById('dashboardContent');
@@ -2672,11 +2681,12 @@ This report was generated from the Claims Analytics Dashboard.
                     if (shareBtn) shareBtn.style.display = 'none';
                     
                 } else {
-                    throw new Error('Invalid data format');
+                    throw new Error('Invalid data format received from server');
                 }
             } catch (error) {
                 console.error('Load error:', error);
-                alert('Error loading shared dashboard. Please try again later.');
+                alert('Error loading shared dashboard: ' + error.message);
+                // If detailed error, show it in console
             }
             
             showLoading(false);
@@ -2731,7 +2741,10 @@ This report was generated from the Claims Analytics Dashboard.
             
             // Hide upload-related buttons
             const uploadSection = document.getElementById('uploadSection');
-            if (uploadSection) uploadSection.remove();
+            if (uploadSection) {
+                // Do NOT remove, just hide completely so we can still read premiumInput
+                uploadSection.style.display = 'none';
+            }
             
             // Hide "New Data" button in slicers
             const newDataBtn = document.querySelector('button[onclick="showUpload()"]');
