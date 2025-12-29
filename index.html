@@ -2646,8 +2646,13 @@ This report was generated from the Claims Analytics Dashboard.
                     
                     // Restore Premium
                     if (parsed.premium) {
+                        console.log('Restoring premium:', parsed.premium);
                         const premiumInput = document.getElementById('premiumInput');
-                        if (premiumInput) premiumInput.value = parsed.premium;
+                        if (premiumInput) {
+                            premiumInput.value = parsed.premium;
+                        } else {
+                            console.error('Premium Input element NOT found!');
+                        }
                     }
                     
                     console.log('Loaded', rawData.length, 'records');
@@ -2657,9 +2662,6 @@ This report was generated from the Claims Analytics Dashboard.
                     const uploadSection = document.getElementById('uploadSection');
                     if (uploadSection) {
                         uploadSection.style.display = 'none';
-                        // Do NOT remove, just hide, so we can access premiumInput
-                        uploadSection.style.visibility = 'hidden'; 
-                        uploadSection.style.position = 'absolute';
                     }
                     
                     const dashboardContent = document.getElementById('dashboardContent');
@@ -2686,7 +2688,6 @@ This report was generated from the Claims Analytics Dashboard.
             } catch (error) {
                 console.error('Load error:', error);
                 alert('Error loading shared dashboard: ' + error.message);
-                // If detailed error, show it in console
             }
             
             showLoading(false);
@@ -2840,11 +2841,10 @@ This report was generated from the Claims Analytics Dashboard.
             if (window.isViewOnlyFromURL && window.sharedDataId) {
                 isViewOnlyMode = true;
                 
-                // Force hide upload section
+                // Force hide upload section but DO NOT remove it so we can access premiumInput
                 const uploadSection = document.getElementById('uploadSection');
                 if (uploadSection) {
                     uploadSection.style.display = 'none';
-                    uploadSection.remove();
                 }
                 
                 // Load data from JSONBin if it's a JSONBin share
