@@ -1968,14 +1968,30 @@
                     responsive: true,
                     maintainAspectRatio: false,
                     cutout: '60%',
-                    events: [], // Disable hover events
-                    onClick: null, // Explicitly disable click events
+                    onClick: null, // Disable click filtering
                     plugins: {
                         legend: {
                             position: 'bottom',
                             labels: { padding: 8, font: { size: 10 }, usePointStyle: true }
                         },
-                        tooltip: { enabled: false } 
+                        tooltip: {
+                            enabled: true,
+                            titleFont: { size: 12 },
+                            bodyFont: { size: 11 },
+                            callbacks: {
+                                label: (context) => {
+                                    const label = context.label || '';
+                                    const value = context.raw || 0;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                    const statusData = grouped[label];
+                                    return [
+                                        `${label}: ${value} claims (${percentage}%)`,
+                                        `Amount: ${formatCurrency(statusData ? statusData.amount : 0)}`
+                                    ];
+                                }
+                            }
+                        }
                     }
                 }
             });
