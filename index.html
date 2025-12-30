@@ -172,10 +172,61 @@
             #matrixContainer {
                 overflow-x: auto;
                 -webkit-overflow-scrolling: touch;
+                max-width: 100%;
             }
             
             #matrixContainer table {
-                min-width: 500px;
+                min-width: 400px;
+                font-size: 10px;
+            }
+            
+            #matrixContainer th,
+            #matrixContainer td {
+                padding: 4px 6px !important;
+                white-space: nowrap;
+            }
+            
+            /* Payout Matrix specific mobile fixes */
+            @media (max-width: 768px) {
+                #matrixContainer {
+                    margin: 0 -8px;
+                    padding: 0 8px;
+                    width: calc(100% + 16px);
+                }
+                
+                #matrixContainer table {
+                    min-width: 350px;
+                    font-size: 9px;
+                }
+                
+                #matrixContainer th,
+                #matrixContainer td {
+                    padding: 3px 4px !important;
+                }
+                
+                #matrixContainer th:first-child,
+                #matrixContainer td:first-child {
+                    max-width: 80px;
+                    overflow: hidden;
+                    text-overflow: ellipsis;
+                }
+            }
+            
+            @media (max-width: 480px) {
+                #matrixContainer table {
+                    min-width: 300px;
+                    font-size: 8px;
+                }
+                
+                #matrixContainer th,
+                #matrixContainer td {
+                    padding: 2px 3px !important;
+                }
+                
+                #matrixContainer th:first-child,
+                #matrixContainer td:first-child {
+                    max-width: 60px;
+                }
             }
             
             /* Insights panel */
@@ -1080,6 +1131,7 @@
                 <div class="visual-header">
                     <h3 class="chart-title"><i class="fas fa-th text-indigo-500 mr-2"></i>Payout Ratio Matrix (Disease × City)</h3>
                 </div>
+                <p class="text-xs text-gray-500 mt-1 mb-2 md:hidden"><i class="fas fa-arrows-alt-h mr-1"></i>Scroll horizontally to see more</p>
                 <div id="matrixContainer" class="overflow-x-auto mt-3"></div>
             </div>
         </div>
@@ -1627,7 +1679,7 @@
                     bgClass = 'bg-red-50 border-red-200 text-red-800';
                 }
                 
-                // Wellness-focused messaging
+                // Wellness-focused messaging - Encouraging wellness programs
                 if (premiumRatio <= 70) {
                     statusTitle = 'Excellent Status';
                     statusDesc = 'Great job! Keep investing in your wellness programs to maintain this healthy ratio.';
@@ -1643,10 +1695,9 @@
                 }
                 
                 gaugeMessage.innerHTML = `
-                    <div class="mt-2 p-4 rounded-xl border ${bgClass} shadow-sm text-center">
-                        <p class="font-bold text-sm uppercase tracking-wide opacity-90 mb-1">${statusTitle} (${premiumRatio.toFixed(1)}%)</p>
+                    <div class="mt-2 p-3 rounded-xl border ${bgClass} shadow-sm text-center">
+                        <p class="font-bold text-sm uppercase tracking-wide opacity-90 mb-1">${statusTitle}</p>
                         <p class="text-xs font-medium leading-relaxed opacity-90">${statusDesc}</p>
-                        <p class="text-[10px] mt-2 font-mono text-gray-500">Premium Base: ${formatCurrency(premium)}</p>
                     </div>
                 `;
             } else {
@@ -1696,10 +1747,7 @@
                             ctx.fillStyle = '#64748b';
                             ctx.fillText('Claim Ratio', width / 2, height - 15);
                             
-                            // Show premium amount inside gauge
-                            ctx.font = '10px Segoe UI';
-                            ctx.fillStyle = '#94a3b8';
-                            ctx.fillText(`Prem: ${formatCurrency(premium)}`, width / 2, height + 5);
+                            // Premium text REMOVED from inside gauge
                         } else {
                             ctx.font = 'bold 16px Segoe UI';
                             ctx.fillStyle = '#9ca3af';
@@ -1712,6 +1760,16 @@
                     }
                 }]
             });
+            
+            // Update the gauge chart header with premium amount
+            const headerTitle = document.querySelector('#gaugeChartContainer .chart-title');
+            if (headerTitle) {
+                if (hasPremium) {
+                    headerTitle.innerHTML = `<i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Claim Ratio <span class="ml-2 text-xs font-medium text-green-700 bg-green-50 px-2 py-0.5 rounded-full border border-green-200">Premium: ${formatCurrency(premium)}</span>`;
+                } else {
+                    headerTitle.innerHTML = `<i class="fas fa-tachometer-alt text-amber-500 mr-2"></i>Claim Ratio`;
+                }
+            }
         }
 
         function updateCityChart() {
